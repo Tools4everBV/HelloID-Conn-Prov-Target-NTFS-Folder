@@ -2,6 +2,10 @@
 |:---------------------------|
 | This repository contains the connector and configuration code only. The implementer is responsible to acquire the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements. |
 
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/69046642/173362624-71b91ad9-55c0-4743-95be-6e66c71872be.png">
+</p>
+
 ## Versioning
 | Version | Description | Date |
 | - | - | - |
