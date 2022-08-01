@@ -41,38 +41,69 @@ $setADAttributes = $true
 
 #region Change mapping here
 switch ($folderType) {
-    "HomeDirectory"{
-        $ad_user = Get-ADUser -Identity $aRef -Property $folderType -server $pdc
-        $currentPath = $ad_user.$folderType
+    "HomeDirectory" {
+        try {
+            $ad_user = Get-ADUser -Identity $aRef.SID -Property $folderType -server $pdc
+            $currentPath = $ad_user.$folderType
+        }
+        catch {
+            Write-Warning "Error querying AD user $($aRef.SID). Error: $_"
+            Write-Warning "Using data from aRef instead of AD data" 
+        }
     }
     "ProfilePath" {
-        $ad_user = Get-ADUser -Identity $aRef -Property $folderType -server $pdc
-        $currentPath = $ad_user.$folderType
+        try {
+            $ad_user = Get-ADUser -Identity $aRef.SID -Property $folderType -server $pdc
+            $currentPath = $ad_user.$folderType
+        }
+        catch {
+            Write-Warning "Error querying AD user $($aRef.SID). Error: $_"
+            Write-Warning "Using data from aRef instead of AD data" 
+        }
     }
     "MsTSHomeDirectory" {
-        $ad_user = Get-ADUser -Identity $aRef -server $pdc
+        try {
+            $ad_user = Get-ADUser -Identity $aRef.SID -server $pdc
 
-        $adsi = [adsi]::new("LDAP://$($ad_user.distinguishedName)")                 
+            $adsi = [adsi]::new("LDAP://$($ad_user.distinguishedName)")                 
 
-        $currentPath = $adsi.psbase.InvokeGet("TerminalServicesHomeDirectory")
+            $currentPath = $adsi.psbase.InvokeGet("TerminalServicesHomeDirectory")
+        }
+        catch {
+            Write-Warning "Error querying AD user $($aRef.SID). Error: $_"
+            Write-Warning "Using data from aRef instead of AD data" 
+        }
     }
     "MsTSProfilePath" {
-        $ad_user = Get-ADUser -Identity $aRef -server $pdc
+        try {
+            $ad_user = Get-ADUser -Identity $aRef.SID -server $pdc
 
-        $adsi = [adsi]::new("LDAP://$($ad_user.distinguishedName)")                 
+            $adsi = [adsi]::new("LDAP://$($ad_user.distinguishedName)")                 
 
-        $currentPath = $adsi.psbase.InvokeGet("TerminalServicesProfilePath")
+            $currentPath = $adsi.psbase.InvokeGet("TerminalServicesProfilePath")
+        }
+        catch {
+            Write-Warning "Error querying AD user $($aRef.SID). Error: $_"
+            Write-Warning "Using data from aRef instead of AD data" 
+        }
     }
     default {
-        $ad_user = Get-ADUser -Identity $aRef -server $pdc
+        try {
+            $ad_user = Get-ADUser -Identity $aRef.SID -server $pdc
+        }
+        catch {
+            Write-Warning "Error querying AD user $($aRef.SID). Error: $_"
+            Write-Warning "Using data from aRef instead of AD data" 
+        }
     }
 }
 
 if ([string]::IsNullOrWhiteSpace($currentPath)) {
-    $calcDirectory = "\\{0}\{1}" -f "$server\$path", $ad_user.sAMAccountName
-    $calcArchiveDirectory = "\\{0}\{1}" -f "$server\$archivePath", "$archivePrefix$($ad_user.sAMAccountName)$archiveSuffix"
+    $calcDirectory = "\\{0}\{1}" -f "$server\$path", $aRef.sAMAccountName
+    $calcArchiveDirectory = "\\{0}\{1}" -f "$server\$archivePath", "$archivePrefix$($aRef.sAMAccountName)$archiveSuffix"
 }
-else { # Directory already defined on Account
+else {
+    # Directory already defined on Account
     $calcDirectory = $currentPath
 
     $currentPath = $calcDirectory
@@ -92,7 +123,7 @@ $target = @{
     fsr          = [System.Security.AccessControl.FileSystemRights]"Modify" #File System Rights
     act          = [System.Security.AccessControl.AccessControlType]::Allow #Access Control Type
     inf          = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" #Inheritance Flags
-    pf           = [System.Security.AccessControl.PropagationFlags]"InheritOnly" #Propagation Flags
+    pf           = [System.Security.AccessControl.PropagationFlags]"None" #Propagation Flags
 }
 #endregion Change mapping here
 
@@ -104,21 +135,29 @@ foreach ($permission in $pRef.CurrentPermissions) {
 
 $desiredPermissions = @{}
 foreach ($contract in $p.Contracts) {
-    if($contract.Context.InConditions)
-    {
-    $desiredPermissions["$folderType"] = $calcDirectory
+    if ($contract.Context.InConditions) {
+        $desiredPermissions["$folderType"] = $calcDirectory
     }
 }
 
 # Compare desired with current permissions and grant permissions
 foreach ($permission in $desiredPermissions.GetEnumerator()) {
     $dynamicPermissions.Add([PSCustomObject]@{
-        DisplayName = $permission.Value
-        Reference   = [PSCustomObject]@{ Id = $permission.Name }
-    })
-
+            DisplayName = $permission.Value
+            Reference   = [PSCustomObject]@{ Id = $permission.Name }
+        })
     if (-Not $currentPermissions.ContainsKey($permission.Name)) {
-        if (-Not($dryRun -eq $True)) {
+        if ($null -eq $aRef.sAMAccountName -or $null -eq $aRef.SID) {
+            Write-Warning "Missing data in aRef. No sAMAccountName or SID found."
+        
+            $success = $false;
+            $auditLogs.Add([PSCustomObject]@{
+                    Action  = "RevokeDynamicPermission"
+                    Message = "$folderType creation failed for person - $($homeDrive.path). No sAMAccountName or SID found in aRef."
+                    IsError = $true
+                })
+        }
+        elseif (-Not($dryRun -eq $True)) {
             try {
                 $path_exists = test-path $target.path
                 if (-Not $path_exists) {
@@ -127,58 +166,73 @@ foreach ($permission in $desiredPermissions.GetEnumerator()) {
                     $directory = New-Item -path $target.path -ItemType Directory -force
                 }
                 
-                # Update AD User
-                if ($setADAttributes -eq $true) {
-                    switch ($folderType) {
-                        "HomeDirectory" {
-                            $adUserParams = @{
-                                HomeDrive     = $target.drive
-                                HomeDirectory = $target.path
-                                Server        = $pdc
+                if ($null -ne $target.ad_user ) {
+                    # Update AD User
+                    if ($setADAttributes -eq $true) {
+                        switch ($folderType) {
+                            "HomeDirectory" {
+                                $adUserParams = @{
+                                    HomeDrive     = $target.drive
+                                    HomeDirectory = $target.path
+                                    Server        = $pdc
+                                }
+                                Set-ADUser $target.ad_user @adUserParams
                             }
-                            Set-ADUser $target.ad_user @adUserParams
-                        }
-                        "ProfilePath" {
-                            $adUserParams = @{
-                                Profilepath = $target.path
-                                Server      = $pdc
+                            "ProfilePath" {
+                                $adUserParams = @{
+                                    Profilepath = $target.path
+                                    Server      = $pdc
+                                }
+                                Set-ADUser $target.ad_user @adUserParams
                             }
-                            Set-ADUser $target.ad_user @adUserParams
-                        }
-                        "MsTSHomeDirectory" {        
-                            $adsi = [adsi]::new("LDAP://$($target.ad_user.distinguishedName)")                 
+                            "MsTSHomeDirectory" {        
+                                $adsi = [adsi]::new("LDAP://$($target.ad_user.distinguishedName)")                 
 
-                            #Set Settings
-                            $path = $target.path
-                            $drive = $target.drive
-                            $adsi.psbase.InvokeSet("TerminalServicesHomeDirectory", "$path")
-                            $adsi.psbase.InvokeSet("TerminalServicesHomeDrive", "$drive")
-                            $adsi.CommitChanges()
-                        }                        
-                        "MsTSProfilePath" {
-                            $adsi = [adsi]::new("LDAP://$($target.ad_user.distinguishedName)")
-                                                
-                            #Set Settings
-                            $path = $target.path                            
-                            $adsi.psbase.InvokeSet("TerminalServicesProfilePath", "$path")
-                            $adsi.CommitChanges()
-                        }   
+                                #Set Settings
+                                $path = $target.path
+                                $drive = $target.drive
+                                $adsi.psbase.InvokeSet("TerminalServicesHomeDirectory", "$path")
+                                $adsi.psbase.InvokeSet("TerminalServicesHomeDrive", "$drive")
+                                $adsi.CommitChanges()
+                            }                        
+                            "MsTSProfilePath" {
+                                $adsi = [adsi]::new("LDAP://$($target.ad_user.distinguishedName)")
+                                                    
+                                #Set Settings
+                                $path = $target.path                            
+                                $adsi.psbase.InvokeSet("TerminalServicesProfilePath", "$path")
+                                $adsi.CommitChanges()
+                            }   
+                        }
                     }
+                    #Return ACL to modify
+                    $acl = Get-Acl $target.path
+                    
+                    #Assign rights to user
+                    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID, $target.fsr, $target.inf, $target.pf, $target.act)
+                    $acl.AddAccessRule($accessRule)
+
+                    $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($target, $acl)
+                    Write-Verbose -Verbose "Successfully granted $($target.fsr) permission for user $($aRef.sAMAccountName) to $($target.path)"
+                    
+                    $success = $true
+                    $auditLogs.Add([PSCustomObject]@{
+                            Action  = "GrantDynamicPermission"
+                            Message = "$folderType $($target.path) created for person $($p.DisplayName)"
+                            IsError = $False
+                        })
+
                 }
-                #Return ACL to modify
-                $acl = Get-Acl $target.path
-                
-                #Assign rights to user
-                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($target.ad_user.SID, $target.fsr, $target.inf, $target.pf, $target.act)
-                $acl.AddAccessRule($accessRule)
+                else {
+                    Write-Error "No AD user found with SID: $($aRef.SID)"
 
-                $job = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($target, $acl)
-
-                $auditLogs.Add([PSCustomObject]@{
-                        Action  = "GrantDynamicPermission"
-                        Message = "$folderType $($target.path) created for person $($p.DisplayName)"
-                        IsError = $False
-                    })
+                    $success = $False
+                    $auditLogs.Add([PSCustomObject]@{
+                            Action  = "GrantDynamicPermission"
+                            Message = "Error creating $folderType $($target.path) for person $($p.DisplayName). Error: No AD user found with SID: $($aRef.SID)"
+                            IsError = $true
+                        })
+                }
             }
             catch {
                 $success = $False
@@ -210,13 +264,23 @@ foreach ($permission in $currentPermissions.GetEnumerator()) {
                         })
                 }
                 else {
-                    if (-Not($dryRun -eq $True)) {
+                    if ($null -eq $aRef.sAMAccountName -or $null -eq $aRef.SID) {
+                        Write-Warning "Missing data in aRef. No sAMAccountName or SID found. Skipping action"
+                   
+                        $success = $True;
+                        $auditLogs.Add([PSCustomObject]@{
+                                Action  = "RevokeDynamicPermission"
+                                Message = "Skipped archiving of $folderType $($target.path) to $($target.archive_path). No sAMAccountName or SID found in aRef."
+                                IsError = $False
+                            })
+                    }
+                    elseif (-Not($dryRun -eq $True)) {
                         #Move home to archive
                         Write-Verbose -Verbose ("Moving path: {0} to archive path: {1}" -f $target.path, $target.archive_path)
                         $null = Move-Item -Path $target.path -Destination $target.archive_path -Force
 
                         # Update AD User
-                        if ($setADAttributes -eq $true) {
+                        if ($null -ne $target.ad_user -and $setADAttributes -eq $true) {
                             switch ($folderType) {
                                 "HomeDirectory" {
                                     $adUserParams = @{
@@ -245,7 +309,7 @@ foreach ($permission in $currentPermissions.GetEnumerator()) {
                                 }                        
                                 "MsTSProfilePath" {
                                     $adsi = [adsi]::new("LDAP://$($target.ad_user.distinguishedName)")
-                                                        
+                                                       
                                     #Set Settings
                                     $path = $target.archive_path                            
                                     $adsi.psbase.InvokeSet("TerminalServicesProfilePath", "$path")
@@ -256,20 +320,20 @@ foreach ($permission in $currentPermissions.GetEnumerator()) {
 
                         $success = $True;
                         $auditLogs.Add([PSCustomObject]@{
-                            Action  = "RevokeDynamicPermission"
-                            Message = "$folderType $($target.path) archived to $($target.archive_path) for person $($p.DisplayName)"
-                            IsError = $False
-                        })
+                                Action  = "RevokeDynamicPermission"
+                                Message = "$folderType $($target.path) archived to $($target.archive_path) for person $($p.DisplayName)"
+                                IsError = $False
+                            })
                     }
                 }
             }
             else {
-                $success = $False;
+                $success = $True;
                 $auditLogs.Add([PSCustomObject]@{
-                    Action  = "RevokeDynamicPermission"
-                    Message = "$folderType archiving failed for person - $($homeDrive.path) - Path $($target.path) does not exist"
-                    IsError = $false
-                })
+                        Action  = "RevokeDynamicPermission"
+                        Message = "$folderType archiving failed for person - $($homeDrive.path) - Path $($target.path) does not exist"
+                        IsError = $false
+                    })
             }
         }
         catch {
@@ -290,14 +354,14 @@ foreach ($permission in $currentPermissions.GetEnumerator()) {
 # No Update actions from HelloID on Directories
 <#
 # Update current permissions
-if ($o -eq "update") {
-    foreach($permission in $newCurrentPermissions.GetEnumerator()) {    
-        $auditLogs.Add([PSCustomObject]@{
-            Action = "UpdateDynamicPermission"
-            Message = "Updated access to department share $($permission.Value)"
-            IsError = $False
-        })
-    }
+#if ($o -eq "update") {
+#    foreach($permission in $newCurrentPermissions.GetEnumerator()) {    
+#        $auditLogs.Add([PSCustomObject]@{
+#            Action = "UpdateDynamicPermission"
+#            Message = "Updated access to department share $($permission.Value)"
+#           IsError = $False
+#        })
+#    }
 }
 #>
 #endregion Execute
