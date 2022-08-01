@@ -6,7 +6,7 @@ $pd = $personDifferences | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
 
 $success = $False
-$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
+$auditLogs = [Collections.Generic.List[PSCustomObject]]::new();
 
 #Get Primary Domain Controller
 $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
@@ -14,6 +14,8 @@ $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain |
 
 #region Execute
 try{
+    # 2021/12/28 - RS - Find AD ACcount by sAMAccountName from AD system
+    # $correlationAccountField = $config.correlationAccountField
     $sAMAccountName = $p.accounts.MicrosoftActiveDirectory.sAMAccountName 
     Write-Information "Identity: $($sAMAccountName)";
     
@@ -45,8 +47,11 @@ catch
 #region build up result
 $result = [PSCustomObject]@{
     Success= $success;
-    AccountReference= $account.SID.Value
-    AuditLogs = $auditLogs;
+    AccountReference= @{
+        SID = $account.SID.Value
+        sAMAccountName = $account.sAMAccountName
+    }
+    AuditLogs = $auditLogs
     Account = $account;
 };
 
