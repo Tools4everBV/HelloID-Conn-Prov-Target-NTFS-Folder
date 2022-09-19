@@ -35,7 +35,7 @@ try {
 
     $auditLogs.Add([PSCustomObject]@{
             Action  = "CreateAccount"
-            Message = "successfully correlated to account $($currentAccount.sAMAccountName) ($($currentAccount.objectGUID))";
+            Message = "Successfully correlated to account $($currentAccount.sAMAccountName) ($($currentAccount.objectGUID))";
             IsError = $false;
         });    
     $success = $true;
@@ -60,7 +60,7 @@ catch {
 
     Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
 
-    if ($auditErrorMessage -Like "Failed to return an AD account" -or $auditErrorMessage -Like "Cannot find an object with identity: '$SamAccountName'*") {
+    if ($auditErrorMessage -Like "Failed to return an AD account" -or $auditErrorMessage -Like "Cannot find an object with identity: '$($account.SamAccountName)'*") {
         $success = $false
         $auditLogs.Add([PSCustomObject]@{
                 Action  = "CreateAccount"
