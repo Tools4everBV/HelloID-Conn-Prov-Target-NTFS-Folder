@@ -27,24 +27,24 @@ $adUser = Get-ADUser $aRef.ObjectGuid
 # $dryRun = $false
 # $adUser = Get-ADUser '1a57e933-bd4d-48f8-bb32-34b1460a393d'
 
-$directories = @(
-    # HomeDir
-    [PSCustomObject]@{
-        path        = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
-        archivePath = "\\HELLOID001\Home\_Archive\"
-    },
-    # ProfileDir
-    [PSCustomObject]@{
-        path        = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
-        archivePath = "\\HELLOID001\Profile\_Archive\"
-    },
-    # ProjectsDir
-    [PSCustomObject]@{
-        path        = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
-        archivePath = "\\HELLOID001\projects\_Archive\"
-    }
-)
-Write-Verbose "Directories: $($directories.path)"
+# HomeDir
+$homeDir = [PSCustomObject]@{
+    path        = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
+    archivePath = "\\HELLOID001\Home\_Archive\"
+}
+
+# ProfileDir
+$profileDir = [PSCustomObject]@{
+    path        = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
+    archivePath = "\\HELLOID001\Profile\_Archive\"
+}
+
+# ProjectsDir
+$projectsDir = [PSCustomObject]@{
+    path        = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
+    archivePath = "\\HELLOID001\projects\_Archive\"
+}
+
 #endregion Change mapping here
 
 try {
