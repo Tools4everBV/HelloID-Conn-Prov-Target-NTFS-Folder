@@ -29,7 +29,7 @@ $adUser = Get-ADUser $aRef.ObjectGuid
 
 # HomeDir
 $homeDir = [PSCustomObject]@{
-    path        = "\\HELLOID001\Home\guido.janssen"#"\\HELLOID001\Home\$($adUser.sAMAccountName)"
+    path        = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
     archivePath = "\\HELLOID001\Home\_Archive\"
 }
 
