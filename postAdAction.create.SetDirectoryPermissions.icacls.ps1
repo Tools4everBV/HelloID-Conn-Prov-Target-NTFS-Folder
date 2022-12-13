@@ -10,6 +10,8 @@ $mRef = $managerAccountReference | ConvertFrom-Json
 # - exchangeConfiguration: The configuration that was used for exchange if exchange is turned on
 # - exportData: All mapping fields where 'Store this field in person account data' is turned on
 $eRef = $entitlementContext | ConvertFrom-Json
+
+$success = $false
 $auditLogs = [Collections.Generic.List[PSCustomObject]]::new()
 
 # logging preferences
@@ -20,146 +22,130 @@ $WarningPreference = "Continue"
 #region Change mapping here
 $adUser = Get-ADUser $eRef.adUser.ObjectGuid
 
+# Troubleshooting
+# $dryRun = $false
+# $adUser = Get-ADUser '1a57e933-bd4d-48f8-bb32-34b1460a393d'
+
 # HomeDir
-$HomeDirPath = "\\server\share\optional-folder\$($adUser.sAMAccountName)"
-Write-Verbose "HomeDir path: $($HomeDirPath)"
-
-$targetHome = @{
-    ad_user = $adUser
-    path    = $HomeDirPath
-    # Supported permissions: Full Control,Modify,Read and execute,Read-only,Write-only
-    permission  = "Full Control"
-    # The objects the permissions apply to. Supported inheritance levels: This folder only,This folder and subfolders,This folder, subfolders and files
-    inheritance = "This folder, subfolders and files"
-}
-
-# ProfileDir
-$ProfileDirPath = "\\server\share\optional-folder\$($adUser.sAMAccountName)"
-Write-Verbose "ProfileDir path: $($ProfileDirPath)"
-
-$targetProfile = @{
-    ad_user = $adUser
-    path    = $HomeDirPath
-    # Supported permissions: Full Control,Modify,Read and execute,Read-only,Write-only
-    permission  = "Full Control"
-    # The objects the permissions apply to. Supported inheritance levels: This folder only,This folder and subfolders,This folder, subfolders and files
-    inheritance = "This folder, subfolders and files"
-}
+$directories = @(
+    # HomeDir
+    [PSCustomObject]@{
+        ad_user     = $adUser
+        path        = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
+        # Supported permissions: Full Control,Modify,Read and execute,Read-only,Write-only
+        permission  = "Full Control"
+        # The objects the permissions apply to. Supported inheritance levels: This folder only,This folder and subfolders,This folder, subfolders and files
+        inheritance = "This folder, subfolders and files"
+    },
+    # ProfileDir
+    [PSCustomObject]@{
+        ad_user     = $adUser
+        path        = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
+        # Supported permissions: Full Control,Modify,Read and execute,Read-only,Write-only
+        permission  = "Full Control"
+        # The objects the permissions apply to. Supported inheritance levels: This folder only,This folder and subfolders,This folder, subfolders and files
+        inheritance = "This folder, subfolders and files"
+    }
+    # ProjectsDir
+    [PSCustomObject]@{
+        ad_user     = $adUser
+        path        = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
+        # Supported permissions: Full Control,Modify,Read and execute,Read-only,Write-only
+        permission  = "Full Control"
+        # The objects the permissions apply to. Supported inheritance levels: This folder only,This folder and subfolders,This folder, subfolders and files
+        inheritance = "This folder, subfolders and files"
+    }
+)
+Write-Verbose "Directories: $($directories.path)"
 #endregion Change mapping here
 
-if (-Not($dryRun -eq $true)) {
-    # HomeDir
-    try {
-        $homeDirExists = test-path $targetHome.path
-        if (-Not $homeDirExists) {
-            $success = $false
+try {
+    foreach ($directory in $directories) {
+        # Set Directory Permissions
+        try {
+            $directoryExists = $null
+            $directoryExists = test-path $directory.path
+            if (-Not $directoryExists) {
+                throw "No directory found at path: $($directory.path)"                
+            }
+            else {
+                if ($dryRun -eq $false) {
+                    Write-Verbose "Setting permissions '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+
+                    $perm = $null
+                    switch ($directory.permission) {
+                        "Full Control" { $perm = "(F)" }
+                        "Modify " { $perm = "(M)" }
+                        "Read and execute" { $perm = "(RX)" }
+                        "Read-only" { $perm = "(R)" }
+                        "Write-only" { $perm = "(W)" }
+                    }
+                
+                    $inher = $null
+                    switch ($($directory.inheritance)) {
+                        "This folder only" { $inher = "" }
+                        "This folder and subfolders " { $inher = "(CI)" }
+                        "This folder, subfolders and files" { $inher = "(CI)(OI)" }
+                    }
+                
+                    # Icacls docs: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls 
+                    # $setAclOwner = TAKEOWN /F $directory.path /A #<- Optional setting owner if needed
+                    $setAcl = icacls $directory.path /grant "$($directory.ad_user.sAMAccountName):$($inher)$($perm)" /T
+
+                    $auditLogs.Add([PSCustomObject]@{
+                            Action  = "CreateAccount"
+                            Message = "Successfully set '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                            IsError = $False
+                        })
+
+                    # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
+                    Write-Information "Successfully set '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                }
+                else {
+                    Write-Warning "DryRun: would set '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                }
+            }
+        }
+        catch {
+            $ex = $PSItem
+            $verboseErrorMessage = $ex.Exception.Message
+            $auditErrorMessage = $ex.Exception.Message
+
+            Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+
             $auditLogs.Add([PSCustomObject]@{
-                    Action  = "CreateAccount"
-                    Message = "Error setting permissions: $($targetHome.permission) for user: $($targetHome.ad_user.sAMAccountName) to $($targetHome.inheritance) for directory: $($targetHome.$path). Error: No directory found at path: $($targetHome.path)"
+                    Action  = "DisableAccount"
+                    Message = "Error setting permissions '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'. Error Message: $auditErrorMessage"
                     IsError = $True
                 })
-            Write-Error "No directory found at path: $($targetHome.path)"                
+            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
+            Write-Warning "Error setting permissions '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'. Error Message: $auditErrorMessage"
         }
-
-        Write-Verbose "Setting permissions: $($targetHome.permission) for user: $($targetHome.ad_user.sAMAccountName) to $($targetHome.inheritance) for directory: $($targetHome.path)"
-        switch($targetHome.permission){
-            "Full Control" { $perm = "(F)" }
-            "Modify " { $perm = "(M)" }
-            "Read and execute" { $perm = "(RX)" }
-            "Read-only" { $perm = "(R)" }
-            "Write-only" { $perm = "(W)" }
-        }
-    
-        switch($($targetHome.inheritance)){
-            "This folder only" { $inher = "" }
-            "This folder and subfolders " { $inher = "(CI)" }
-            "This folder, subfolders and files" { $inher = "(CI)(OI)" }
-        }
-    
-        # Icacls docs: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls 
-        # $setAclOwner = TAKEOWN /F $targetHome.path /A #<- Optional setting owner if needed
-        $setAcl = icacls $targetHome.path /grant "$($targetHome.ad_user.sAMAccountName):$($inher)$($perm)" /T
-        Write-Information "Succesfully set permissions: $($targetHome.permission) for user: $($targetHome.ad_user.sAMAccountName) to $($targetHome.inheritance) for directory: $($targetHome.path)"
-        
+    }
+}
+finally {
+    # Check if auditLogs doesn't contain errors, if so, set success to true
+    if ($auditLogs.IsError -notcontains $true) {
         $success = $true
-        $auditLogs.Add([PSCustomObject]@{
-                Action  = "CreateAccount"
-                Message = "Successfully set permissions: $($targetHome.permission) for user: $($targetHome.ad_user.sAMAccountName) to $($targetHome.inheritance) for directory: $($targetHome.path)"
-                IsError = $False
-            })
-    }
-    catch {
-        $success = $False
-        $auditLogs.Add([PSCustomObject]@{
-                Action  = "CreateAccount"
-                Message = "Failed to set permissions: $($targetHome.permission) for user: $($targetHome.ad_user.sAMAccountName) to $($targetHome.inheritance) for directory: $($targetHome.path). Error: $($_)"
-                IsError = $True
-            })
-        throw $_
+    }    
+
+    #build up result
+    $result = [PSCustomObject]@{
+        Success   = $success
+        AuditLogs = $auditLogs
+
+        # Return data for use in other systems.
+        # If not present or empty the default export data will be used
+        # The $eRef.exportData contains the export data from the mapping which is the default
+        # When an object is returned the export data will be overwritten with the provided data
+        # ExportData = $eRef.exportData
+
+        # Return data for use in notifications.
+        # If not present or empty the default account data will be used    
+        # When an object is returned this data will be available in the notification
+        # Account = $eRef.account
     }
 
-    # ProfileDir
-    try {
-        $profileDirExists = test-path $targetProfile.path
-        if (-Not $profileDirExists) {
-            $success = $false
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "CreateAccount"
-                    Message = "Error setting permissions: $($targetProfile.permission) for user: $($targetProfile.ad_user.sAMAccountName) to $($targetProfile.inheritance) for directory: $($targetProfile.$path). Error: No directory found at path: $($targetProfile.path)"
-                    IsError = $True
-                })
-            Write-Error "No directory found at path: $($targetProfile.path)"                
-        }
-
-        Write-Verbose "Setting permissions: $($targetProfile.permission) for user: $($targetProfile.ad_user.sAMAccountName) to $($targetProfile.inheritance) for directory: $($targetProfile.path)"
-        switch($targetProfile.permission){
-            "Full Control" { $perm = "(F)" }
-            "Modify " { $perm = "(M)" }
-            "Read and execute" { $perm = "(RX)" }
-            "Read-only" { $perm = "(R)" }
-            "Write-only" { $perm = "(W)" }
-        }
-    
-        switch($($targetProfile.inheritance)){
-            "This folder only" { $inher = "" }
-            "This folder and subfolders " { $inher = "(CI)" }
-            "This folder, subfolders and files" { $inher = "(CI)(OI)" }
-        }
-    
-        # Icacls docs: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls 
-        $setAcl = icacls $targetProfile.path /grant "$($targetProfile.ad_user.sAMAccountName):$($inher)$($perm)" /T
-        Write-Information "Succesfully set permissions: $($targetProfile.permission) for user: $($targetProfile.ad_user.sAMAccountName) to $($targetProfile.inheritance) for directory: $($targetProfile.path)"
-        
-        $success = $true
-        $auditLogs.Add([PSCustomObject]@{
-                Action  = "CreateAccount"
-                Message = "Successfully set permissions: $($targetProfile.permission) for user: $($targetProfile.ad_user.sAMAccountName) to $($targetProfile.inheritance) for directory: $($targetProfile.path)"
-                IsError = $False
-            })
-    }
-    catch {
-        $success = $False
-        $auditLogs.Add([PSCustomObject]@{
-                Action  = "CreateAccount"
-                Message = "Failed to set permissions: $($targetProfile.permission) for user: $($targetProfile.ad_user.sAMAccountName) to $($targetProfile.inheritance) for directory: $($targetProfile.path). Error: $($_)"
-                IsError = $True
-            })
-        throw $_
-    }
+    #send result back
+    Write-Output $result | ConvertTo-Json -Depth 10
 }
-else {
-    # Write dry run logic here
-}
-
-#build up result
-$result = [PSCustomObject]@{
-    Success   = $success
-    AuditLogs = $auditLogs
-
-    # Return data for use in other systems.
-    # If not present or empty the default export data will be used
-    # ExportData = [PSCustomObject]@{}
-}
-
-#send result back
-Write-Output $result | ConvertTo-Json -Depth 10

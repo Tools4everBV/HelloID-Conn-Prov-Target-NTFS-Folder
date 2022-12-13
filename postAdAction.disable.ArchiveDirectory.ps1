@@ -27,186 +27,80 @@ $adUser = Get-ADUser $aRef.ObjectGuid
 # $dryRun = $false
 # $adUser = Get-ADUser '1a57e933-bd4d-48f8-bb32-34b1460a393d'
 
-# HomeDir
-$homeDir = [PSCustomObject]@{
-    path        = "\\HELLOID001\Home\guido.janssen"#"\\HELLOID001\Home\$($adUser.sAMAccountName)"
-    archivePath = "\\HELLOID001\Home\_Archive\"
-}
-
-# ProfileDir
-$profileDir = [PSCustomObject]@{
-    path        = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
-    archivePath = "\\HELLOID001\Profile\_Archive\"
-}
-
-# ProjectsDir
-$projectsDir = [PSCustomObject]@{
-    path        = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
-    archivePath = "\\HELLOID001\projects\_Archive\"
-}
-
+$directories = @(
+    # HomeDir
+    [PSCustomObject]@{
+        path        = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
+        archivePath = "\\HELLOID001\Home\_Archive\"
+    },
+    # ProfileDir
+    [PSCustomObject]@{
+        path        = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
+        archivePath = "\\HELLOID001\Profile\_Archive\"
+    },
+    # ProjectsDir
+    [PSCustomObject]@{
+        path        = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
+        archivePath = "\\HELLOID001\projects\_Archive\"
+    }
+)
+Write-Verbose "Directories: $($directories.path)"
 #endregion Change mapping here
 
 try {
-    # Archive HomeDir
-    try {
-        $homeDirExists = test-path $homeDir.path
-        if (-Not $homeDirExists) {
-            throw "No directory found at path: $($homeDir.path)"                
-        }
-        else {
-            if ($dryRun -eq $false) {
-                Write-Verbose "Moving folder '$($homeDir.path)' to archive path '$($homeDir.archivePath)'"
+    foreach ($directory in $directories) {
+        # Archive Directory
+        try {
+            $directoryExists = test-path $directory.path
+            if (-Not $directoryExists) {
+                throw "No directory found at path: $($directory.path)"                
+            }
+            else {
+                if ($dryRun -eq $false) {
+                    Write-Verbose "Moving folder '$($directory.path)' to archive path '$($directory.archivePath)'"
 
-                # $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop} -ArgumentList @($homeDir.path, $homeDir.archivePath)
-                $null = Move-Item -Path $homeDir.path -Destination $($homeDir.archivePath) -Force -ErrorAction Stop
-        
+                    # $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop} -ArgumentList @($directory.path, $directory.archivePath)
+                    $null = Move-Item -Path $directory.path -Destination $($directory.archivePath) -Force -ErrorAction Stop
+            
+                    $auditLogs.Add([PSCustomObject]@{
+                            Action  = "DisableAccount"
+                            Message = "Successfully moved folder '$($directory.path)' to archive path '$($directory.archivePath)'"
+                            IsError = $false
+                        })
+                    # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
+                    Write-Information "Successfully moved folder '$($directory.path)' to archive path '$($directory.archivePath)'"
+                }
+                else {
+                    Write-Warning "DryRun: would move folder '$($directory.path)' to archive path '$($directory.archivePath)'"
+                }
+            }
+        }
+        catch {
+            $ex = $PSItem
+            $verboseErrorMessage = $ex.Exception.Message
+            $auditErrorMessage = $ex.Exception.Message
+
+            Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+
+            # Treat missing folder as success
+            if ($auditErrorMessage -Like "No directory found at path: $($directory.path)") {
                 $auditLogs.Add([PSCustomObject]@{
                         Action  = "DisableAccount"
-                        Message = "Successfully moved folder '$($homeDir.path)' to archive path '$($homeDir.archivePath)'"
+                        Message = "No folder found at '$($directory.path)'. Skipping archive action"
                         IsError = $false
                     })
                 # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                Write-Information "Successfully moved folder '$($homeDir.path)' to archive path '$($homeDir.archivePath)'"
+                Write-Warning "No folder found at '$($directory.path)'. Skipping archive action"
             }
             else {
-                Write-Warning "DryRun: would move folder '$($homeDir.path)' to archive path '$($homeDir.archivePath)'"
-            }
-        }
-    }
-    catch {
-        $ex = $PSItem
-        $verboseErrorMessage = $ex.Exception.Message
-        $auditErrorMessage = $ex.Exception.Message
-
-        Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
-
-        # Treat missing folder as success
-        if ($auditErrorMessage -Like "No directory found at path: $($homeDir.path)") {
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "DisableAccount"
-                    Message = "No folder found at '$($homeDir.path)'. Skipping archive action"
-                    IsError = $false
-                })
-            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "No folder found at '$($homeDir.path)'. Skipping archive action"
-        }
-        else {
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "DisableAccount"
-                    Message = "Error moving folder '$($homeDir.path)' to archive path '$($homeDir.archivePath)'. Error Message: $auditErrorMessage"
-                    IsError = $True
-                })
-            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "Error moving folder '$($homeDir.path)' to archive path '$($homeDir.archivePath)'. Error Message: $auditErrorMessage"
-        }
-    }
-
-    # Archive ProfileDir
-    try {
-        $fsLogixExists = test-path $profileDir.path
-        if (-Not $fsLogixExists) {
-            throw "No directory found at path: $($profileDir.path)"                
-        }
-        else {
-            if ($dryRun -eq $false) {
-                Write-Verbose "Moving folder '$($profileDir.path)' to archive path '$($profileDir.archivePath)'"
-
-                # $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop} -ArgumentList @($profileDir.path, $profileDir.archivePath)
-                $null = Move-Item -Path $profileDir.path -Destination $($profileDir.archivePath) -Force -ErrorAction Stop
-        
                 $auditLogs.Add([PSCustomObject]@{
                         Action  = "DisableAccount"
-                        Message = "Successfully moved folder '$($profileDir.path)' to archive path '$($profileDir.archivePath)'"
-                        IsError = $false
+                        Message = "Error moving folder '$($directory.path)' to archive path '$($directory.archivePath)'. Error Message: $auditErrorMessage"
+                        IsError = $True
                     })
                 # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                Write-Information "Successfully moved folder '$($profileDir.path)' to archive path '$($profileDir.archivePath)'"
+                Write-Warning "Error moving folder '$($directory.path)' to archive path '$($directory.archivePath)'. Error Message: $auditErrorMessage"
             }
-            else {
-                Write-Warning "DryRun: would move folder '$($profileDir.path)' to archive path '$($profileDir.archivePath)'"
-            }
-        }
-    }
-    catch {
-        $ex = $PSItem
-        $verboseErrorMessage = $ex.Exception.Message
-        $auditErrorMessage = $ex.Exception.Message
-
-        Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
-
-        # Treat missing folder as success
-        if ($auditErrorMessage -Like "No directory found at path: $($profileDir.path)") {
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "DisableAccount"
-                    Message = "No folder found at '$($profileDir.path)'. Skipping archive action"
-                    IsError = $false
-                })
-            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "No folder found at '$($profileDir.path)'. Skipping archive action"
-        }
-        else {
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "DisableAccount"
-                    Message = "Error moving folder '$($profileDir.path)' to archive path '$($profileDir.archivePath)'. Error Message: $auditErrorMessage"
-                    IsError = $True
-                })
-            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "Error moving folder '$($profileDir.path)' to archive path '$($profileDir.archivePath)'. Error Message: $auditErrorMessage"
-        }
-    }
-
-    # Archive ProjectsDir
-    try {
-        $fsLogix365Exists = test-path $projectsDir.path
-        if (-Not $fsLogix365Exists) {
-            throw "No directory found at path: $($projectsDir.path)"                
-        }
-        else {
-            if ($dryRun -eq $false) {
-                Write-Verbose "Moving folder '$($projectsDir.path)' to archive path '$($projectsDir.archivePath)'"
-
-                # $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop} -ArgumentList @($projectsDir.path, $projectsDir.archivePath)
-                $null = Move-Item -Path $projectsDir.path -Destination $($projectsDir.archivePath) -Force -ErrorAction Stop
-    
-                $auditLogs.Add([PSCustomObject]@{
-                        Action  = "DisableAccount"
-                        Message = "Successfully moved folder '$($projectsDir.path)' to archive path '$($projectsDir.archivePath)'"
-                        IsError = $false
-                    })
-                # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                Write-Information "Successfully moved folder '$($projectsDir.path)' to archive path '$($projectsDir.archivePath)'"
-            }
-            else {
-                Write-Warning "DryRun: would move folder '$($projectsDir.path)' to archive path '$($projectsDir.archivePath)'"
-            }
-        }
-    }
-    catch {
-        $ex = $PSItem     
-        $verboseErrorMessage = $ex.Exception.Message
-        $auditErrorMessage = $ex.Exception.Message
-
-        Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
-
-        # Treat missing folder as success
-        if ($auditErrorMessage -Like "No directory found at path: $($projectsDir.path)") {
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "DisableAccount"
-                    Message = "No folder found at '$($projectsDir.path)'. Skipping archive action"
-                    IsError = $false
-                })
-            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "No folder found at '$($projectsDir.path)'. Skipping archive action"
-        }
-        else {
-            $auditLogs.Add([PSCustomObject]@{
-                    Action  = "DisableAccount"
-                    Message = "Error moving folder '$($projectsDir.path)' to archive path '$($projectsDir.archivePath)'. Error Message: $auditErrorMessage"
-                    IsError = $True
-                })
-            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "Error moving folder '$($projectsDir.path)' to archive path '$($projectsDir.archivePath)'. Error Message: $auditErrorMessage"
         }
     }
 }
