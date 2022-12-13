@@ -1,7 +1,6 @@
 #Initialize default properties
 $p = $person | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
-$aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
 
 # The entitlementContext contains the domainController, adUser, configuration, exchangeConfiguration and exportData
@@ -21,57 +20,80 @@ $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
 #region Change mapping here
-$adUser = Get-ADUser $aRef.ObjectGuid
+$adUser = Get-ADUser $eRef.adUser.ObjectGuid
 
 # Troubleshooting
 # $dryRun = $false
 # $adUser = Get-ADUser '1a57e933-bd4d-48f8-bb32-34b1460a393d'
 
 # HomeDir
-$homeDir = [PSCustomObject]@{
-    path        = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
-    archivePath = "\\HELLOID001\Home\_Archive\"
-}
-
-# ProfileDir
-$profileDir = [PSCustomObject]@{
-    path        = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
-    archivePath = "\\HELLOID001\Profile\_Archive\"
-}
-
-# ProjectsDir
-$projectsDir = [PSCustomObject]@{
-    path        = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
-    archivePath = "\\HELLOID001\projects\_Archive\"
-}
-
+$directories = @(
+    # HomeDir
+    [PSCustomObject]@{
+        ad_user = $adUser
+        path    = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
+        fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
+        act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
+        inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
+        pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
+    },
+    # ProfileDir
+    [PSCustomObject]@{
+        ad_user = $adUser
+        path    = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
+        fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
+        act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
+        inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
+        pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
+    }
+    # ProjectsDir
+    [PSCustomObject]@{
+        ad_user = $adUser
+        path    = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
+        fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
+        act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
+        inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
+        pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
+    }
+)
+Write-Verbose "Directories: $($directories.path)"
 #endregion Change mapping here
 
 try {
     foreach ($directory in $directories) {
-        # Archive Directory
+        # Set Directory Permissions
         try {
+            $directoryExists = $null
             $directoryExists = test-path $directory.path
             if (-Not $directoryExists) {
                 throw "No directory found at path: $($directory.path)"                
             }
             else {
                 if ($dryRun -eq $false) {
-                    Write-Verbose "Moving folder '$($directory.path)' to archive path '$($directory.archivePath)'"
+                    Write-Verbose "Setting ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
 
-                    # $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop} -ArgumentList @($directory.path, $directory.archivePath)
-                    $null = Move-Item -Path $directory.path -Destination $($directory.archivePath) -Force -ErrorAction Stop
-            
+                    #Return ACL to modify
+                    $acl = Get-Acl $directory.path
+                    
+                    #Assign rights to user
+                    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($directory.ad_user.SID, $directory.fsr, $directory.inf, $directory.pf, $directory.act)
+                    $acl.AddAccessRule($accessRule)
+                
+                    # Icacls docs: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls 
+                    # $setAclOwner = TAKEOWN /F $directory.path /A #<- Optional setting owner if needed
+                    $setAcl = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($directory, $acl)
+
                     $auditLogs.Add([PSCustomObject]@{
-                            Action  = "DisableAccount"
-                            Message = "Successfully moved folder '$($directory.path)' to archive path '$($directory.archivePath)'"
-                            IsError = $false
+                            Action  = "CreateAccount"
+                            Message = "Successfully ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
+                            IsError = $False
                         })
+
                     # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                    Write-Information "Successfully moved folder '$($directory.path)' to archive path '$($directory.archivePath)'"
+                    Write-Information "Successfully set ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
                 }
                 else {
-                    Write-Warning "DryRun: would move folder '$($directory.path)' to archive path '$($directory.archivePath)'"
+                    Write-Warning "DryRun: would set ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
                 }
             }
         }
@@ -82,25 +104,13 @@ try {
 
             Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
 
-            # Treat missing folder as success
-            if ($auditErrorMessage -Like "No directory found at path: $($directory.path)") {
-                $auditLogs.Add([PSCustomObject]@{
-                        Action  = "DisableAccount"
-                        Message = "No folder found at '$($directory.path)'. Skipping archive action"
-                        IsError = $false
-                    })
-                # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                Write-Warning "No folder found at '$($directory.path)'. Skipping archive action"
-            }
-            else {
-                $auditLogs.Add([PSCustomObject]@{
-                        Action  = "DisableAccount"
-                        Message = "Error moving folder '$($directory.path)' to archive path '$($directory.archivePath)'. Error Message: $auditErrorMessage"
-                        IsError = $True
-                    })
-                # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                Write-Warning "Error moving folder '$($directory.path)' to archive path '$($directory.archivePath)'. Error Message: $auditErrorMessage"
-            }
+            $auditLogs.Add([PSCustomObject]@{
+                    Action  = "DisableAccount"
+                    Message = "Error setting ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'. Error Message: $auditErrorMessage"
+                    IsError = $True
+                })
+            # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
+            Write-Warning "Error setting ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'. Error Message: $auditErrorMessage"
         }
     }
 }
