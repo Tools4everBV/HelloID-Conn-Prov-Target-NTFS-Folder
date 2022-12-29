@@ -79,9 +79,12 @@ try {
                     $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($directory.ad_user.SID, $directory.fsr, $directory.inf, $directory.pf, $directory.act)
                     $acl.AddAccessRule($accessRule)
                 
-                    # Icacls docs: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls 
+                    # Set-Acl docs: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.3
                     # $setAclOwner = TAKEOWN /F $directory.path /A #<- Optional setting owner if needed
+                    # Since HelloID has a timeout of 30 seconds, we create a job that performs the action. We do not get the results of this job, so HelloID always treats this as a succes.
                     $setAcl = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($directory, $acl)
+                    # When troubleshooting is needed, please perform the action directly, so the actual results of the action are logged. This can be done by using the line below.
+                    # Set-Acl -path $directory.path -AclObject $acl
 
                     $auditLogs.Add([PSCustomObject]@{
                             Action  = "CreateAccount"
