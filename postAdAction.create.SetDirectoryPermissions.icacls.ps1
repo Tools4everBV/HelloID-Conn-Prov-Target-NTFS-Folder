@@ -114,7 +114,7 @@ try {
             Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
 
             $auditLogs.Add([PSCustomObject]@{
-                    Action  = "DisableAccount"
+                    Action  = "CreateAccount"
                     Message = "Error setting permissions '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'. Error Message: $auditErrorMessage"
                     IsError = $True
                 })
