@@ -20,13 +20,41 @@ $verbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-#region Change mapping here
-$adUser = Get-ADUser $aRef.ObjectGuid
+# Get Primary Domain Controller
+# Use data from eRef to avoid a query to the external AD system
+if(-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))){
+    $pdc = $eRef.domainController.Name
+}
+else{
+    try {
+        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    }
+    catch {
+        Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+        Write-Warning "Retrying PDC Lookup"
+        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    }
+}
+
+#Get AD account object
+# Use data from eRef to avoid a query to the external AD system
+if(-NOT([String]::IsNullOrEmpty($eRef.adUser.SamAccountName))){
+    $adUser = $eRef.adUser
+}
+else{
+    try {
+        $adUser = Get-ADUser -Identity $aRef.ObjectGuid -server $pdc
+    }
+    catch {
+        throw "Error querying AD user '$($aRef.ObjectGuid)'. Error: $_"
+    }
+}
 
 # Troubleshooting
 # $dryRun = $false
 # $adUser = Get-ADUser '1a57e933-bd4d-48f8-bb32-34b1460a393d'
 
+#region Change mapping here
 $directories = @(
     # HomeDir
     [PSCustomObject]@{
