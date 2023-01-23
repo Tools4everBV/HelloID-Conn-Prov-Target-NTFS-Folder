@@ -32,6 +32,14 @@ switch ($($c.isDebug)) {
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
+# Troubleshooting
+# $aRef = @{
+#     objectGUID     = "60bef72d-4d33-49de-8286-f73a9a89e4cd"
+#     SID            = "S-1-5-21-741916949-825606008-3913300161-1114"
+#     sAMAccountName = "test01"
+# }
+# $dryRun = $false
+
 #Get Primary Domain Controller
 try {
     $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
@@ -48,7 +56,8 @@ try {
 }
 catch {
     Write-Warning "Error querying AD user $($aRef.SID). Error: $_"
-    Write-Warning "Using data from aRef instead of AD data" 
+    Write-Warning "Using data from aRef instead of AD data"
+    $adUser = $aRef
 }
 
 #endregion Initialize default properties
@@ -65,10 +74,6 @@ $directory = @{
     pf              = [System.Security.AccessControl.PropagationFlags]"None" #Propagation Flags
 }
 #endregion Change mapping here
-
-# # Troubleshooting
-# $aRef = "9f4b2474-3c8d-4f92-94bc-58fed6e2d09b"
-# $dryRun = $false
 
 try {
     # Create directory if it doesn't exist yet
