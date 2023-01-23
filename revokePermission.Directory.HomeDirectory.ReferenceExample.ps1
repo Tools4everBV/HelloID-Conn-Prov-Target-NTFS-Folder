@@ -32,6 +32,14 @@ switch ($($c.isDebug)) {
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
+# Troubleshooting
+# $aRef = @{
+#     objectGUID     = "60bef72d-4d33-49de-8286-f73a9a89e4cd"
+#     SID            = "S-1-5-21-741916949-825606008-3913300161-1114"
+#     sAMAccountName = "test01"
+# }
+# $dryRun = $false
+
 #Get Primary Domain Controller
 try {
     $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
@@ -48,7 +56,8 @@ try {
 }
 catch {
     Write-Warning "Error querying AD user $($aRef.SID). Error: $_"
-    Write-Warning "Using data from aRef instead of AD data" 
+    Write-Warning "Using data from aRef instead of AD data"
+    $adUser = $aRef
 }
 
 #endregion Initialize default properties
@@ -62,10 +71,6 @@ $directory = @{
     drive           = "H:"
 }
 #endregion Change mapping here
-
-# # Troubleshooting
-# $aRef = "9f4b2474-3c8d-4f92-94bc-58fed6e2d09b"
-# $dryRun = $false
 
 try {
     # Check if directory exists
@@ -85,9 +90,12 @@ try {
             try {
                 if ($dryRun -eq $false) {
                     Write-Verbose "Moving directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
-    
-                    $archivedDirectory = Move-Item -Path $target.path -Destination $target.archive_path -Force
-    
+
+                    # The scripts in HelloID Prov have a 30 second time-out limit. Therefore we use a job to archive (larger) folders
+                    $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop} -ArgumentList @($directory.path, $directory.archive_path)
+                    # If troubleshooting is need, use the action below instead of the job, as the job doesn't show any errors
+                    # $archivedDirectory = Move-Item -Path $directory.path -Destination $directory.archive_path -Force -ErrorAction Stop
+                    
                     $auditLogs.Add([PSCustomObject]@{
                             # Action  = "DeleteResource"
                             Message = "Successfully moved directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
