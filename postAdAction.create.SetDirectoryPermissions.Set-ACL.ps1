@@ -1,3 +1,9 @@
+#####################################################
+# HelloID-Conn-Prov-Target-NTFS-PostADAction-Create-Set-HomeDir-Permissions-Set-ACL
+#
+# Version: 1.0.1
+#####################################################
+
 #Initialize default properties
 $p = $person | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
