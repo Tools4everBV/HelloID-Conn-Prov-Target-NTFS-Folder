@@ -9,6 +9,7 @@
 ## Versioning
 | Version | Description | Date |
 | - | - | - |
+| 1.0.2   | Updated to only use Post AD actions for permissions, any other actions are an addiitonal connector | 2023/01/27  |
 | 1.0.1   | Updated to use eRef and aRef | 2023/01/23  |
 | 1.0.0   | Initial release | 2022/06/13  |
 
@@ -23,7 +24,10 @@
 - [HelloID docs](#helloid-docs)
 
 ## Introduction
-_HelloID-Conn-Prov-Target-NTFS-Folder is a _target_ connector that allows you to manage the NTFS permissions. Using the Dynamic Permission entitlements it is possible to also create the folders and map the corresponding AD attribute.
+_HelloID-Conn-Prov-Target-NTFS-Folder is a _target_ connector that allows you to manage the NTFS folders and permissions.
+If you need to adjust the permissions on the folders __created by the HelloID built-in AD connector (Home, TsHome, Profile or TsProfile)__, the Post AD action script can be used.
+For creating or managing __folders not created by HelloID__, the GrantPermission and RevokePermission scripts can be used.
+Please do not perform any other NTFS actions in the Post AD actions.
 The HelloID connector consists of the template scripts shown in the following table.
 
 | Action                          | Action(s) Performed                           | Comment   | 
@@ -31,10 +35,8 @@ The HelloID connector consists of the template scripts shown in the following ta
 | create.correlate.ps1                                | Correlate to the AD account                   | This script has a dependency to the Microsoft AD system, since it has to set the permissions for that account. |
 | postAdAction.create.SetDirectoryPermissions.Set-ACL | Set permissions to the __already created__ NTFS folder using the command [Set-ACL](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.2)  | This script has to be run in the __Create__ [Post Action](https://docs.helloid.com/hc/en-us/articles/360012421460-Configure-the-on-premises-Microsoft-Active-Directory-target-system#2.4.2:~:text=Post%20Action%20Configuration) of the [built-in Microsoft Active Directory Target Connector](https://docs.helloid.com/hc/en-us/articles/360012421460-Configure-the-on-premises-Microsoft-Active-Directory-target-system)  |
 | postAdAction.create.SetDirectoryPermissions.icacls | Set permissions to the __already created__ NTFS folder using the command [ICACLS](https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls)  | This script has to be run in the __Create__ [Post Action](https://docs.helloid.com/hc/en-us/articles/360012421460-Configure-the-on-premises-Microsoft-Active-Directory-target-system#2.4.2:~:text=Post%20Action%20Configuration) of the [built-in Microsoft Active Directory Target Connector](https://docs.helloid.com/hc/en-us/articles/360012421460-Configure-the-on-premises-Microsoft-Active-Directory-target-system)  |
-| postAdAction.disable.ArchiveDirectory | Archive the __existing__ NTFS folders using the command [Move-Item](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/move-item?view=powershell-7.3)  | This script __cannot__ be run in the __Delete__ action [Post Action](https://docs.helloid.com/hc/en-us/articles/360012421460-Configure-the-on-premises-Microsoft-Active-Directory-target-system#2.4.2:~:text=Post%20Action%20Configuration) of the [built-in Microsoft Active Directory Target Connector](https://docs.helloid.com/hc/en-us/articles/360012421460-Configure-the-on-premises-Microsoft-Active-Directory-target-system). Therefore we recommend archiving the folders in the __Disable__ action or by using an additional PS Connector  |
 | grantPermission.Directory.HomeDirectory.ReferenceExample | Create folder if it doesn't exist. Optionally, set the AD attributte. Set permissions to the NTFS folder using the command [Set-ACL](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.2)  | If the folder cannot be found, it will be created. This example specifically shows how to set the HomeDirectory in AD.  |
 | revokePermission.Directory.HomeDirectory.ReferenceExample | Archive folder if it exists. Optionally, set the AD attributte  | If the folder cannot be found, the archive action will be skipped. This example specifically shows how to set the HomeDirectory in AD.  |
-
 
 ## Getting started
 
