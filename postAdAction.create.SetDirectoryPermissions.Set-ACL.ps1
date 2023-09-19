@@ -61,7 +61,7 @@ else {
 
 # Troubleshooting
 # $dryRun = $false
-# $adUser = Get-ADUser -Filter "UserPrincipalName -eq `"sedgraaf@DeHaven.nu`""
+# $adUser = Get-ADUser -Filter "UserPrincipalName -eq `"jdoe@enyoi.nu`""
 
 #region Change mapping here
 # HomeDir
@@ -69,7 +69,25 @@ $directories = @(
     # HomeDir
     [PSCustomObject]@{
         ad_user = $adUser
-        path    = "\\fileserver\users\$($adUser.sAMAccountName)"
+        path    = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
+        fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
+        act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
+        inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
+        pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
+    },
+    # ProfileDir
+    [PSCustomObject]@{
+        ad_user = $adUser
+        path    = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
+        fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
+        act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
+        inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
+        pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
+    }
+    # ProjectsDir
+    [PSCustomObject]@{
+        ad_user = $adUser
+        path    = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
         fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
         act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
         inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
