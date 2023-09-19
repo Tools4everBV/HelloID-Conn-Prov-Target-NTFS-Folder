@@ -27,10 +27,10 @@ $WarningPreference = "Continue"
 
 # Get Primary Domain Controller
 # Use data from eRef to avoid a query to the external AD system
-if(-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))){
+if (-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))) {
     $pdc = $eRef.domainController.Name
 }
-else{
+else {
     try {
         $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
     }
@@ -43,10 +43,10 @@ else{
 
 #Get AD account object
 # Use data from eRef to avoid a query to the external AD system
-if(-NOT([String]::IsNullOrEmpty($eRef.adUser.SamAccountName))){
+if (-NOT([String]::IsNullOrEmpty($eRef.adUser.SamAccountName))) {
     $adUser = $eRef.adUser
 }
-else{
+else {
     try {
         $adUser = Get-ADUser -Identity $aRef.ObjectGuid -server $pdc
     }
@@ -57,7 +57,7 @@ else{
 
 # Troubleshooting
 # $dryRun = $false
-# $adUser = Get-ADUser '1a57e933-bd4d-48f8-bb32-34b1460a393d'
+# $adUser = Get-ADUser -Filter "UserPrincipalName -eq `"jdoe@enyoi.nu`""
 
 #region Change mapping here
 # HomeDir
