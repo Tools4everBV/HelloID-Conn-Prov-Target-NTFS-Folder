@@ -7,6 +7,7 @@
 #Initialize default properties
 $p = $person | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
+$aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
 
 # The entitlementContext contains the domainController, adUser, configuration, exchangeConfiguration and exportData
@@ -28,10 +29,10 @@ $WarningPreference = "Continue"
 
 # Get Primary Domain Controller
 # Use data from eRef to avoid a query to the external AD system
-if(-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))){
+if (-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))) {
     $pdc = $eRef.domainController.Name
 }
-else{
+else {
     try {
         $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
     }
@@ -44,12 +45,14 @@ else{
 
 #Get AD account object
 # Use data from eRef to avoid a query to the external AD system
-if(-NOT([String]::IsNullOrEmpty($eRef.adUser.SamAccountName))){
+if (-NOT([String]::IsNullOrEmpty($eRef.adUser.SamAccountName))) {
     $adUser = $eRef.adUser
 }
-else{
+else {
+    Write-Warning "eRef empty: $($eRef | ConvertTo-Json)"
+    Write-Warning "Using aRef: $($aRef | ConvertTo-Json)"
     try {
-        $adUser = Get-ADUser -Identity $eRef.adUser.ObjectGuid -server $pdc
+        $adUser = Get-ADUser -Identity $aRef.ObjectGuid -server $pdc
     }
     catch {
         throw "Error querying AD user '$($aRef.ObjectGuid)'. Error: $_"
@@ -58,7 +61,7 @@ else{
 
 # Troubleshooting
 # $dryRun = $false
-# $adUser = Get-ADUser '1a57e933-bd4d-48f8-bb32-34b1460a393d'
+# $adUser = Get-ADUser -Filter "UserPrincipalName -eq `"sedgraaf@DeHaven.nu`""
 
 #region Change mapping here
 # HomeDir
@@ -66,25 +69,7 @@ $directories = @(
     # HomeDir
     [PSCustomObject]@{
         ad_user = $adUser
-        path    = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
-        fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
-        act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
-        inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
-        pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
-    },
-    # ProfileDir
-    [PSCustomObject]@{
-        ad_user = $adUser
-        path    = "\\HELLOID001\Profile\$($adUser.sAMAccountName)"
-        fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
-        act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
-        inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
-        pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
-    }
-    # ProjectsDir
-    [PSCustomObject]@{
-        ad_user = $adUser
-        path    = "\\HELLOID001\projects\$($adUser.sAMAccountName)"
+        path    = "\\fileserver\users\$($adUser.sAMAccountName)"
         fsr     = [System.Security.AccessControl.FileSystemRights]"FullControl" # Optiong can de found at Microsoft docs: https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-6.0
         act     = [System.Security.AccessControl.AccessControlType]::Allow # Options: Allow , Remove
         inf     = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit" # Options: None , ContainerInherit , ObjectInherit
@@ -111,7 +96,7 @@ try {
                     $acl = Get-Acl $directory.path
                     
                     #Assign rights to user
-                    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($directory.ad_user.SID, $directory.fsr, $directory.inf, $directory.pf, $directory.act)
+                    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($directory.ad_user.sAMAccountName, $directory.fsr, $directory.inf, $directory.pf, $directory.act)
                     $acl.AddAccessRule($accessRule)
                 
                     # Set-Acl docs: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.3
