@@ -65,7 +65,7 @@ $directories = @(
     # HomeDir
     [PSCustomObject]@{
         ad_user     = $adUser
-        path        = "\\fileserver\users\$($adUser.sAMAccountName)"
+        path        = "\\HELLOID001\Home\$($adUser.sAMAccountName)"
         # Supported permissions: Full Control,Modify,Read and execute,Read-only,Write-only
         permission  = "Full Control"
         # The objects the permissions apply to. Supported inheritance levels: This folder only,This folder and subfolders,This folder, subfolders and files
