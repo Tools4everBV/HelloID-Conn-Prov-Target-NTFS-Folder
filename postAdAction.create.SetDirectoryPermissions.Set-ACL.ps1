@@ -12,7 +12,7 @@ $mRef = $managerAccountReference | ConvertFrom-Json
 
 # The entitlementContext contains the domainController, adUser, configuration, exchangeConfiguration and exportData
 # - domainController: The IpAddress and name of the domain controller used to perform the action on the account
-# - adUser: Information about the adAccount: objectGuid, samAccountName and distinguishedName
+# - adUser: Information about the adAccount: objectGuid, SID and distinguishedName
 # - configuration: The configuration that is set in the Custom PowerShell configuration
 # - exchangeConfiguration: The configuration that was used for exchange if exchange is turned on
 # - exportData: All mapping fields where 'Store this field in person account data' is turned on
@@ -26,9 +26,8 @@ $verbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-
 # Get Primary Domain Controller
-# Use data from eRef to avoid a query to the external AD system
+# Use domain controller from eRef if available, otherwise query primary domain controller
 if (-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))) {
     $pdc = $eRef.domainController.Name
 }
@@ -43,20 +42,20 @@ else {
     }
 }
 
-#Get AD account object
-# Use data from eRef to avoid a query to the external AD system
-if (-NOT([String]::IsNullOrEmpty($eRef.adUser.SamAccountName))) {
-    $adUser = $eRef.adUser
+# Get AD account object
+# Use objectGuid from aRef if available, otherwise use objectGuid from eRef 
+if (-NOT([String]::IsNullOrEmpty($aRef.ObjectGuid))) {
+    $adUSerIdentity = $aRef.objectGuid
 }
 else {
-    Write-Warning "eRef empty: $($eRef | ConvertTo-Json)"
-    Write-Warning "Using aRef: $($aRef | ConvertTo-Json)"
-    try {
-        $adUser = Get-ADUser -Identity $aRef.ObjectGuid -server $pdc
-    }
-    catch {
-        throw "Error querying AD user '$($aRef.ObjectGuid)'. Error: $_"
-    }
+    $adUSerIdentity = $eRef.adUser.objectGuid
+}
+
+try {
+    $adUser = Get-ADUser -Identity $adUSerIdentity -server $pdc
+}
+catch {
+    throw "Error querying AD user [$($adUSerIdentity)]. Error: $_"
 }
 
 # Troubleshooting
@@ -94,6 +93,7 @@ $directories = @(
         pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
     }
 )
+)
 Write-Verbose "Directories: $($directories.path)"
 #endregion Change mapping here
 
@@ -108,33 +108,33 @@ try {
             }
             else {
                 if ($dryRun -eq $false) {
-                    Write-Verbose "Setting ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
+                    Write-Verbose "Setting ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
 
                     #Return ACL to modify
                     $acl = Get-Acl $directory.path
                     
                     #Assign rights to user
-                    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($directory.ad_user.sAMAccountName, $directory.fsr, $directory.inf, $directory.pf, $directory.act)
+                    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($directory.ad_user.SID, $directory.fsr, $directory.inf, $directory.pf, $directory.act)
                     $acl.AddAccessRule($accessRule)
                 
                     # Set-Acl docs: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.3
                     # $setAclOwner = TAKEOWN /F $directory.path /A #<- Optional setting owner if needed
                     # Since HelloID has a timeout of 30 seconds, we create a job that performs the action. We do not get the results of this job, so HelloID always treats this as a succes.
-                    $setAcl = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($directory, $acl)
+                    # $setAcl = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($directory, $acl)
                     # When troubleshooting is needed, please perform the action directly, so the actual results of the action are logged. This can be done by using the line below.
-                    # Set-Acl -path $directory.path -AclObject $acl
+                    Set-Acl -path $directory.path -AclObject $acl
 
                     $auditLogs.Add([PSCustomObject]@{
                             Action  = "CreateAccount"
-                            Message = "Successfully ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
+                            Message = "Successfully ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
                             IsError = $False
                         })
 
                     # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                    Write-Information "Successfully set ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
+                    Write-Information "Successfully set ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
                 }
                 else {
-                    Write-Warning "DryRun: would set ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
+                    Write-Warning "DryRun: would set ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
                 }
             }
         }
@@ -147,11 +147,11 @@ try {
 
             $auditLogs.Add([PSCustomObject]@{
                     Action  = "CreateAccount"
-                    Message = "Error setting ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'. Error Message: $auditErrorMessage"
+                    Message = "Error setting ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'. Error Message: $auditErrorMessage"
                     IsError = $True
                 })
             # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "Error setting ACL permissions for user '$($directory.ad_user.sAMAccountName)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'. Error Message: $auditErrorMessage"
+            Write-Warning "Error setting ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'. Error Message: $auditErrorMessage"
         }
     }
 }
