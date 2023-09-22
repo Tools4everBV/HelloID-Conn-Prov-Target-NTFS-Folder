@@ -12,10 +12,12 @@ $mRef = $managerAccountReference | ConvertFrom-Json
 
 # The entitlementContext contains the domainController, adUser, configuration, exchangeConfiguration and exportData
 # - domainController: The IpAddress and name of the domain controller used to perform the action on the account
-# - adUser: Information about the adAccount: objectGuid, SID and distinguishedName
+# - adUser: Information about the adAccount: objectGuid, samAccountName and distinguishedName
 # - configuration: The configuration that is set in the Custom PowerShell configuration
 # - exchangeConfiguration: The configuration that was used for exchange if exchange is turned on
 # - exportData: All mapping fields where 'Store this field in person account data' is turned on
+# - mappedData: The output of the mapping script
+# - account: The data available in the notification
 $eRef = $entitlementContext | ConvertFrom-Json
 
 $success = $false
@@ -93,7 +95,7 @@ $directories = @(
         pf      = [System.Security.AccessControl.PropagationFlags]"None" # Options: None , NoPropagateInherit , InheritOnly
     }
 )
-)
+
 Write-Verbose "Directories: $($directories.path)"
 #endregion Change mapping here
 
@@ -120,9 +122,9 @@ try {
                     # Set-Acl docs: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.3
                     # $setAclOwner = TAKEOWN /F $directory.path /A #<- Optional setting owner if needed
                     # Since HelloID has a timeout of 30 seconds, we create a job that performs the action. We do not get the results of this job, so HelloID always treats this as a succes.
-                    # $setAcl = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($directory, $acl)
+                    $setAcl = Start-Job -ScriptBlock { Set-Acl -path $args[0].path -AclObject $args[1] } -ArgumentList @($directory, $acl)
                     # When troubleshooting is needed, please perform the action directly, so the actual results of the action are logged. This can be done by using the line below.
-                    Set-Acl -path $directory.path -AclObject $acl
+                    # Set-Acl -path $directory.path -AclObject $acl
 
                     $auditLogs.Add([PSCustomObject]@{
                             Action  = "CreateAccount"
