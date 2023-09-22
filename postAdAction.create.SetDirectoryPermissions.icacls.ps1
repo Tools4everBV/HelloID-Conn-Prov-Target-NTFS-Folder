@@ -7,6 +7,7 @@
 #Initialize default properties
 $p = $person | ConvertFrom-Json
 $m = $manager | ConvertFrom-Json
+$aRef = $accountReference | ConvertFrom-Json
 $mRef = $managerAccountReference | ConvertFrom-Json
 
 # The entitlementContext contains the domainController, adUser, configuration, exchangeConfiguration and exportData
@@ -15,6 +16,8 @@ $mRef = $managerAccountReference | ConvertFrom-Json
 # - configuration: The configuration that is set in the Custom PowerShell configuration
 # - exchangeConfiguration: The configuration that was used for exchange if exchange is turned on
 # - exportData: All mapping fields where 'Store this field in person account data' is turned on
+# - mappedData: The output of the mapping script
+# - account: The data available in the notification
 $eRef = $entitlementContext | ConvertFrom-Json
 
 $success = $false
@@ -26,7 +29,7 @@ $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
 # Get Primary Domain Controller
-# Use data from eRef to avoid a query to the external AD system
+# Use domain controller from eRef if available, otherwise query primary domain controller
 if (-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))) {
     $pdc = $eRef.domainController.Name
 }
@@ -41,18 +44,20 @@ else {
     }
 }
 
-#Get AD account object
-# Use data from eRef to avoid a query to the external AD system
-if (-NOT([String]::IsNullOrEmpty($eRef.adUser.SamAccountName))) {
-    $adUser = $eRef.adUser
+# Get AD account object
+# Use objectGuid from aRef if available, otherwise use objectGuid from eRef 
+if (-NOT([String]::IsNullOrEmpty($aRef.ObjectGuid))) {
+    $adUSerIdentity = $aRef.objectGuid
 }
 else {
-    try {
-        $adUser = Get-ADUser -Identity $aRef.ObjectGuid -server $pdc
-    }
-    catch {
-        throw "Error querying AD user '$($aRef.ObjectGuid)'. Error: $_"
-    }
+    $adUSerIdentity = $eRef.adUser.objectGuid
+}
+
+try {
+    $adUser = Get-ADUser -Identity $adUSerIdentity -server $pdc
+}
+catch {
+    throw "Error querying AD user [$($adUSerIdentity)]. Error: $_"
 }
 
 # Troubleshooting
@@ -104,7 +109,7 @@ try {
             }
             else {
                 if ($dryRun -eq $false) {
-                    Write-Verbose "Setting permissions '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                    Write-Verbose "Setting permissions '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'"
 
                     $perm = $null
                     switch ($directory.permission) {
@@ -124,19 +129,19 @@ try {
                 
                     # Icacls docs: https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/icacls 
                     # $setAclOwner = TAKEOWN /F $directory.path /A #<- Optional setting owner if needed
-                    $setAcl = icacls $directory.path /grant "$($directory.ad_user.sAMAccountName):$($inher)$($perm)" /T
+                    $setAcl = icacls $directory.path /grant "$($directory.ad_user.SID):$($inher)$($perm)" /T
 
                     $auditLogs.Add([PSCustomObject]@{
                             Action  = "CreateAccount"
-                            Message = "Successfully set '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                            Message = "Successfully set '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'"
                             IsError = $False
                         })
 
                     # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-                    Write-Information "Successfully set '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                    Write-Information "Successfully set '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'"
                 }
                 else {
-                    Write-Warning "DryRun: would set '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                    Write-Warning "DryRun: would set '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'"
                 }
             }
         }
@@ -149,11 +154,11 @@ try {
 
             $auditLogs.Add([PSCustomObject]@{
                     Action  = "CreateAccount"
-                    Message = "Error setting permissions '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'. Error Message: $auditErrorMessage"
+                    Message = "Error setting permissions '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'. Error Message: $auditErrorMessage"
                     IsError = $True
                 })
             # Currently, Post AD action auditlog is not shown in entitlement log, therefore log in PS as well
-            Write-Warning "Error setting permissions '$($directory.permission)' for user '$($directory.ad_user.sAMAccountName)' to '$($directory.inheritance)' for directory '$($directory.path)'. Error Message: $auditErrorMessage"
+            Write-Warning "Error setting permissions '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'. Error Message: $auditErrorMessage"
         }
     }
 }
