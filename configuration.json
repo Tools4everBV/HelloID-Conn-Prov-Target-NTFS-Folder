@@ -1,5 +1,5 @@
 {
-    "key": "IsDebug",
+    "key": "isDebug",
     "type": "checkbox",
     "defaultValue": true,
     "templateOptions": {
