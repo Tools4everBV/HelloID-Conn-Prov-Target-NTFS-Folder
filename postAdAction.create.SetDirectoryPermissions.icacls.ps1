@@ -114,7 +114,7 @@ try {
                     $perm = $null
                     switch ($directory.permission) {
                         "Full Control" { $perm = "(F)" }
-                        "Modify " { $perm = "(M)" }
+                        "Modify" { $perm = "(M)" }
                         "Read and execute" { $perm = "(RX)" }
                         "Read-only" { $perm = "(R)" }
                         "Write-only" { $perm = "(W)" }
