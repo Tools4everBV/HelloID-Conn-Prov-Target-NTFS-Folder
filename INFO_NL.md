@@ -1,5 +1,3 @@
-## NTFS Target Connector
-
 Met behulp van de NTFS Target Connector koppelt de identity & access management (IAM)-oplossing HelloID van Tools4ever NTFS aan de connector die verantwoordelijk is voor het aanmaken van het account. De NTFS Target Connector zorgt dat de homedirectory van gebruikers automatisch over de juiste NTFS permissies beschikt, en beheert deze permissies. In dit artikel lees je meer over deze koppeling en de mogelijkheden.
 
 ## Wat is NTFS?
@@ -41,8 +39,8 @@ De IAM-oplossing koppelt de NTFS Target Connector aan de connector die het aanma
 
 De NTFS-connector wordt voornamelijk gebruikt in combinatie met een andere doelconnector, die verantwoordelijk is voor het aanmaken van accounts. Enkele veelvoorkomende integraties zijn:
 
-**Microsoft Active Directory - NTFS koppeling:** De koppeling tussen Microsoft Active Directory en NTFS zorgt dat bij het aanmaken van een nieuwe gebruikersaccount door de Microsoft Active Directory connector de bijbehorende homedirectory de juiste NTFS-permissies krijgt toegewezen. Je automatiseert hiermee dit proces, wat tijdrovend en complex kan zijn.
+* **Microsoft Active Directory - NTFS koppeling:** De koppeling tussen Microsoft Active Directory en NTFS zorgt dat bij het aanmaken van een nieuwe gebruikersaccount door de Microsoft Active Directory connector de bijbehorende homedirectory de juiste NTFS-permissies krijgt toegewezen. Je automatiseert hiermee dit proces, wat tijdrovend en complex kan zijn.
 
-**Microsoft Entra ID - NTFS koppeling:** In dit geval koppel je de Microsoft Entra ID connector aan de NTFS Target Connector. De Microsoft Entra ID connector neemt in dit geval het aanmaken van accounts voor rekening. De NTFS-connector zorgt op zijn beurt dat de homedirectory die hierbij wordt gecreëerd de juiste permissies krijgt toegewezen. 
+* **Microsoft Entra ID - NTFS koppeling:** In dit geval koppel je de Microsoft Entra ID connector aan de NTFS Target Connector. De Microsoft Entra ID connector neemt in dit geval het aanmaken van accounts voor rekening. De NTFS-connector zorgt op zijn beurt dat de homedirectory die hierbij wordt gecreëerd de juiste permissies krijgt toegewezen. 
 
 HelloID ondersteunt ruim 200 connectoren. We bieden dan ook een breed scala aan integratiemogelijkheden tussen NTFS en andere bron- en doelsystemen. We breiden ons aanbod aan connectoren en integraties continu uit, waardoor je met alle populaire systemen kunt integreren. 
