@@ -1,33 +1,62 @@
 [
   {
-    "key": "UserName",
-    "type": "input",
-    "defaultValue": "",
+    "key": "setAttributes",
+    "type": "checkbox",
+    "defaultValue": true,
     "templateOptions": {
-      "label": "UserName",
-      "description": "The UserName to connect to the API",
+      "label": "Set AD attributes",
+      "description": "When toggled, attributes will be set",
       "required": true
     }
   },
   {
-    "key": "Password",
+    "key": "homeDrive",
     "type": "input",
-    "defaultValue": "",
     "templateOptions": {
-      "type": "password",
-      "label": "Password",
-      "description": "The password to connect to the API",
+      "label": "Drive letter",
+      "placeholder": "H:",
+      "description": "Drive letter to be mapped to homefolder",
+      "required": false
+    }
+  },
+  {
+    "key": "homeFolderShare",
+    "type": "input",
+    "templateOptions": {
+      "label": "Homefolder Share",
+      "placeholder": "\\\\<servername>\\<sharename>",
+      "description": "Drive letter to be mapped to homefolder",
       "required": true
     }
   },
   {
-    "key": "BaseUrl",
-    "type": "input",
-    "defaultValue": "",
+    "key": "archive",
+    "type": "checkbox",
+    "defaultValue": true,
     "templateOptions": {
-      "label": "BaseUrl",
-      "description": "The URL to the API.",
+      "label": "Archive when revoked",
+      "description": "When toggled, homefolder will be archived when revoked",
+      "required": false
+    }
+  },
+  {
+    "key": "homeFolderArchiveShare",
+    "type": "input",
+    "templateOptions": {
+      "label": "Homefolder Share",
+      "placeholder": "\\\\<servername>\\<sharename>\\<archivefolder>",
+      "description": "Drive letter to be mapped to homefolder",
       "required": true
+    }
+  },
+  {
+    "key": "isDebug",
+    "type": "checkbox",
+    "defaultValue": true,
+    "templateOptions": {
+      "label": "Toggle debug logging",
+      "description": "When toggled, debug logging will be displayed",
+      "required": false
     }
   }
 ]
