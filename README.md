@@ -9,7 +9,7 @@
 
 ## Table of contents
 
-- [HelloID-Conn-Prov-Target-NTFS](#helloid-conn-prov-target-connectorname)
+- [HelloID-Conn-Prov-Target-NTFS](#helloid-conn-prov-target-ntfs)
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
   - [Getting started](#getting-started)
@@ -60,7 +60,8 @@ To properly setup the correlation:
    | Person correlation field  | `PersonContext.Person.ExternalId` |
    | Account correlation field | `employeeId`                      |
 
-> [!TIP] > _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
+> [!TIP] 
+> _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
 
 #### Field mapping
 
@@ -81,9 +82,11 @@ The field mapping can be imported by using the _fieldMapping.json_ file.
 
 ## Getting help
 
-> [!TIP] > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/hc/en-us/articles/360012558020-Configure-a-custom-PowerShell-target-system) pages_
+> [!TIP] 
+> _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/hc/en-us/articles/360012558020-Configure-a-custom-PowerShell-target-system) pages_
 
-> [!TIP] > _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com)_
+> [!TIP] 
+> _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com)_
 
 ## HelloID docs
 
