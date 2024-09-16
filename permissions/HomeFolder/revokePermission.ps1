@@ -43,23 +43,32 @@ try {
 
     if ($null -ne $correlatedAccount) {
         $action = 'RevokePermission'
-        $actionAD = 'Found'
+        $actionAD = 'Found'     
+        $accountSid = $correlatedAccount.SID.Value
+        $accountSamAccountName = $correlatedAccount.sAMAccountName
     }
     else {
+        $action = 'RevokePermission'
         $actionAD = 'NotFound'
         Write-Warning "Using data from actionContext.References.Account instead of AD data, only archive folder if exist"
-        $correlatedAccount = $actionContext.References.Account
+        $accountSid = $personContext.Person.Accounts.NTFS.SID
+        $accountSamAccountName = $personContext.Person.Accounts.NTFS.sAMAccountName    
+    }
+    
+
+    ###To prevent deletion of all homefolders####
+    if($null -eq $accountSamAccountName -or [string]::IsNullOrEmpty($accountSamAccountName.Trim())){
+        throw "Homefoldername couldn't be resolved!"
     }
 
     # Process
     switch ($action) {
         'RevokePermission' {
-
             #region Change mapping here
             $directory = @{
-                ad_user         = $correlatedAccount
-                path            = "$($actionContext.Configuration.homeFolderShare)\$($correlatedAccount.sAMAccountName)"
-                archive_path    = "$($actionContext.Configuration.homeFolderArchiveShare)\$($correlatedAccount.sAMAccountName)"
+                ad_user         = $accountSid
+                path            = "$($actionContext.Configuration.homeFolderShare)\$accountSamAccountName"
+                archive_path    = "$($actionContext.Configuration.homeFolderArchiveShare)\$accountSamAccountName"
                 setADAttributes = $actionContext.Configuration.setAttributes
                 drive           = "$($actionContext.Configuration.homeDrive)"
             }
