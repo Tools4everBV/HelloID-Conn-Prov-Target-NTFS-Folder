@@ -7,11 +7,29 @@
       "Type": "Text",
       "MappingActions": [
         {
-          "MapForActions": ["Create"],
+          "MapForActions": [
+            "Create"
+          ],
           "MappingMode": "Field",
           "Value": "\"Person.ExternalId\"",
           "UsedInNotifications": false,
           "StoreInAccountData": false
+        }
+      ]
+    },
+    {
+      "Name": "SamAccountName",
+      "Description": "Required for foldername. If using different attribute for foldername, change the name to the corresponding AD attribute and place correct attribute name in permission scripts.",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create"
+          ],
+          "MappingMode": "None",
+          "Value": "\"\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
         }
       ]
     },
@@ -21,7 +39,9 @@
       "Type": "Text",
       "MappingActions": [
         {
-          "MapForActions": ["Create"],
+          "MapForActions": [
+            "Create"
+          ],
           "MappingMode": "None",
           "Value": "null",
           "UsedInNotifications": false,
