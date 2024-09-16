@@ -94,6 +94,11 @@ try {
                 $account.SID = $user.SID.Value
             }
 
+            $outputContext.AccountReference = $user.sAMAccountName
+            if ($account.PSObject.Properties.Name -contains 'sAMAccountName') {
+                $account.sAMAccountName = $user.sAMAccountName
+            }
+
             $outputContext.AuditLogs.Add([PSCustomObject]@{
                     Action  = "CorrelateAccount" # Optionally specify a different action for this audit log
                     Message = "Correlated to account with AccountReference: $($outputContext.AccountReference | ConvertTo-Json) on [$($correlationField)] = [$($correlationValue)]."
