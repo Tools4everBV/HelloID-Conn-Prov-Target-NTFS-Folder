@@ -5,10 +5,7 @@
 #####################################################
 
 #Initialize default properties
-$p = $person | ConvertFrom-Json
-$m = $manager | ConvertFrom-Json
 $aRef = $accountReference | ConvertFrom-Json
-$mRef = $managerAccountReference | ConvertFrom-Json
 
 # The entitlementContext contains the domainController, adUser, configuration, exchangeConfiguration and exportData
 # - domainController: The IpAddress and name of the domain controller used to perform the action on the account
