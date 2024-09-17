@@ -18,8 +18,8 @@
       ]
     },
     {
-      "Name": "SamAccountName",
-      "Description": "Required for foldername. If using different attribute for foldername, change the name to the corresponding AD attribute and place correct attribute name in permission scripts.",
+      "Name": "sAMAccountName",
+      "Description": "[Mandatory]\nRequired for foldername. If using different attribute for foldername, change the name to the corresponding AD attribute and place correct attribute name in permission scripts.",
       "Type": "Text",
       "MappingActions": [
         {

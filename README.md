@@ -80,6 +80,9 @@ The field mapping can be imported by using the _fieldMapping.json_ file.
 
 ### Remarks
 
+> [!IMPORTANT]
+> The revoke scripts use the stored account data if the AD account is removed before archiving the folder. The default target connector name `NTFS` is used. Please change the name on rows `54` and `55` if you use a different target connector name.
+
 ## Getting help
 
 > [!TIP] 
