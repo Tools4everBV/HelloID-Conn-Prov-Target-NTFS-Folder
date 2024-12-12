@@ -57,7 +57,7 @@ try {
     
 
     ###To prevent deletion of all homefolders####
-    if($null -eq $accountSamAccountName -or [string]::IsNullOrEmpty($accountSamAccountName.Trim())){
+    if ($null -eq $accountSamAccountName -or [string]::IsNullOrEmpty($accountSamAccountName.Trim())) {
         throw "Homefoldername couldn't be resolved!"
     }
 
@@ -86,48 +86,46 @@ try {
             }
             else {
                 # Archive directory
-                if ($null -ne $directory.ad_user) {
-                    if ($actionContext.DryRun -eq $false) {
-                        Write-Information "Moving directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
-                
-                        # The scripts in HelloID Prov have a 30 second time-out limit. Therefore we use a job to archive (larger) folders
-                        $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop } -ArgumentList @($directory.path, $directory.archive_path)
-                        # If troubleshooting is need, use the action below instead of the job, as the job doesn't show any errors
-                        # $archivedDirectory = Move-Item -Path $directory.path -Destination $directory.archive_path -Force -ErrorAction Stop
-                                    
-                        $outputContext.auditLogs.Add([PSCustomObject]@{
-                                Message = "Successfully moved directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
-                                IsError = $false
-                            })
-                    }
-                    else {
-                        Write-Information "[DryRun] Would move directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
-                    }        
+                if ($actionContext.DryRun -eq $false) {
+                    Write-Information "Moving directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
+            
+                    # The scripts in HelloID Prov have a 30 second time-out limit. Therefore we use a job to archive (larger) folders
+                    $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop } -ArgumentList @($directory.path, $directory.archive_path)
+                    # If troubleshooting is need, use the action below instead of the job, as the job doesn't show any errors
+                    # $archivedDirectory = Move-Item -Path $directory.path -Destination $directory.archive_path -Force -ErrorAction Stop
+                                
+                    $outputContext.auditLogs.Add([PSCustomObject]@{
+                            Message = "Successfully moved directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
+                            IsError = $false
+                        })
+                }
+                else {
+                    Write-Information "[DryRun] Would move directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
+                }        
+
+            }
+            # Update AD User
+            if ($null -ne $directory.ad_user -and $directory.setADAttributes -eq $true -and $actionAD -eq 'Found') {
+                $adUserParams = @{
+                    HomeDrive     = $directory.drive
+                    HomeDirectory = $directory.archive_path
+                    Server        = $pdc
                 }
 
-                # Update AD User
-                if ($null -ne $directory.ad_user -and $directory.setADAttributes -eq $true -and $actionAD -eq 'Found') {
-                    $adUserParams = @{
-                        HomeDrive     = $directory.drive
-                        HomeDirectory = $directory.archive_path
-                        Server        = $pdc
-                    }
+                if ($actionContext.dryRun -eq $false) {
+                    Write-Information "Updating AD user '$($directory.ad_user)' attributes: $($adUserParams|ConvertTo-Json)"
 
-                    if ($actionContext.dryRun -eq $false) {
-                        Write-Information "Updating AD user '$($directory.ad_user)' attributes: $($adUserParams|ConvertTo-Json)"
+                    Set-ADUser $directory.ad_user @adUserParams
 
-                        Set-ADUser $directory.ad_user @adUserParams
-
-                        $outputContext.auditLogs.Add([PSCustomObject]@{
-                                Action  = "UpdateAccount"
-                                Message = "Successfully updated AD user '$($directory.ad_user)' attributes: $($adUserParams|ConvertTo-Json)"
-                                IsError = $false
-                            })
-                    }
-                    else {
-                        Write-Information "[DryRun] Would update AD user '$($directory.ad_user)' attributes: $($adUserParams|ConvertTo-Json)"
-                    }         
+                    $outputContext.auditLogs.Add([PSCustomObject]@{
+                            Action  = "UpdateAccount"
+                            Message = "Successfully updated AD user '$($directory.ad_user)' attributes: $($adUserParams|ConvertTo-Json)"
+                            IsError = $false
+                        })
                 }
+                else {
+                    Write-Information "[DryRun] Would update AD user '$($directory.ad_user)' attributes: $($adUserParams|ConvertTo-Json)"
+                }         
             }
 
             $outputContext.Success = $true
@@ -151,3 +149,4 @@ catch {
             IsError = $true
         })
 }
+

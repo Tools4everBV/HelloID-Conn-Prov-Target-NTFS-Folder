@@ -23,7 +23,7 @@
     "key": "homeFolderShare",
     "type": "input",
     "templateOptions": {
-      "label": "Homefolder Share",
+      "label": "Home folder Share",
       "placeholder": "\\\\<servername>\\<sharename>",
       "description": "Drive letter to be mapped to homefolder",
       "required": true
@@ -43,7 +43,7 @@
     "key": "homeFolderArchiveShare",
     "type": "input",
     "templateOptions": {
-      "label": "Homefolder Share",
+      "label": "Archive folder Share",
       "placeholder": "\\\\<servername>\\<sharename>\\<archivefolder>",
       "description": "Drive letter to be mapped to homefolder",
       "required": true
