@@ -6,19 +6,8 @@
 # Enable TLS1.2
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
-# Set to false at start, at the end, only when no error occurs it is set to true
-$outputContext.Success = $false 
-
 # AccountReference must have a value for dryRun
 $outputContext.AccountReference = "Unknown"
-
-# Set debug logging
-switch ($($actionContext.Configuration.isDebug)) {
-    $true { $VerbosePreference = 'Continue' }
-    $false { $VerbosePreference = 'SilentlyContinue' }
-}
-
-$account = $actionContext.Data
 
 try {
     #region Verify correlation configuration and properties
@@ -57,7 +46,7 @@ try {
         }
     }
     else {
-        Write-Verbose "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"    
+        Write-Information "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"    
         $pdc = $($actionContext.Configuration.fixedDomainController)
     }
     #endregion Get Primary Domain Controller
@@ -67,7 +56,7 @@ try {
     
     $user = Get-ADUser -Filter "$correlationField -eq '$correlationValue'" -Server $pdc -ErrorAction Stop
 
-    Write-Verbose "Queried Microsoft Active Directory account where [$($correlationField)] = [$($correlationValue)]. Result: $($user | ConvertTo-Json)"
+    Write-Information "Queried Microsoft Active Directory account where [$($correlationField)] = [$($correlationValue)]. Result: $($user | ConvertTo-Json)"
     #endregion Get Microsoft Active Directory account
 
     #region Calulate action
@@ -89,14 +78,13 @@ try {
             #region Correlate account
             $actionMessage = "correlating to account"
 
-            $outputContext.AccountReference = $user.SID.Value
-            if ($account.PSObject.Properties.Name -contains 'SID') {
-                $account.SID = $user.SID.Value
+            if ($outputContext.Data.PSObject.Properties.Name -contains 'SID') {
+                $outputContext.Data.SID = $user.SID.Value
             }
 
             $outputContext.AccountReference = $user.sAMAccountName
-            if ($account.PSObject.Properties.Name -contains 'sAMAccountName') {
-                $account.sAMAccountName = $user.sAMAccountName
+            if ($outputContext.Data.PSObject.Properties.Name -contains 'sAMAccountName') {
+                $outputContext.Data.sAMAccountName = $user.sAMAccountName
             }
 
             $outputContext.AuditLogs.Add([PSCustomObject]@{
@@ -151,7 +139,5 @@ finally {
     # Check if auditLogs contains errors, if no errors are found, set success to true
     if (-NOT($outputContext.AuditLogs.IsError -contains $true)) {
         $outputContext.Success = $true
-    }
-
-    $outputContext.Data = $account
+    }s
 }

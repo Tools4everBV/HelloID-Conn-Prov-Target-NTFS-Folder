@@ -6,15 +6,6 @@
 # Enable TLS1.2
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
-# Set debug logging
-switch ($($actionContext.Configuration.isDebug)) {
-    $true { $VerbosePreference = 'Continue' }
-    $false { $VerbosePreference = 'SilentlyContinue' }
-}
-$InformationPreference = "Continue"
-$WarningPreference = "Continue"
-
-# Begin
 try {
     # Verify if [aRef] has a value
     if ([string]::IsNullOrEmpty($($actionContext.References.Account))) {
@@ -130,7 +121,7 @@ try {
 
             $outputContext.Success = $true
             $outputContext.AuditLogs.Add([PSCustomObject]@{
-                    Message = "Revoke permission [$($actionContext.References.Permission.DisplayName)] was successful"
+                    Message = "Revoke permission [$($actionContext.PermissionDisplayName)] was successful"
                     IsError = $false
                 })            
             break

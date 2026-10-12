@@ -93,7 +93,7 @@ $directories = @(
     }
 )
 
-Write-Verbose "Directories: $($directories.path)"
+Write-Information "Directories: $($directories.path)"
 #endregion Change mapping here
 
 try {
@@ -107,7 +107,7 @@ try {
             }
             else {
                 if ($dryRun -eq $false) {
-                    Write-Verbose "Setting ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
+                    Write-Information "Setting ACL permissions for user '$($directory.ad_user.SID)' to directory '$($directory.path)'. File System Rights '$($directory.fsr)', Inheritance Flags '$($directory.inf)', Propagation Flags '$($directory.pf)', Access Control Type '$($directory.act)'"
 
                     #Return ACL to modify
                     $acl = Get-Acl $directory.path
@@ -142,7 +142,7 @@ try {
             $verboseErrorMessage = $ex.Exception.Message
             $auditErrorMessage = $ex.Exception.Message
 
-            Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+            Write-Information "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
 
             $auditLogs.Add([PSCustomObject]@{
                     Action  = "CreateAccount"

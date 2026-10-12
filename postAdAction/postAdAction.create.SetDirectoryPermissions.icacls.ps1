@@ -92,7 +92,7 @@ $directories = @(
         inheritance = "This folder, subfolders and files"
     }
 )
-Write-Verbose "Directories: $($directories.path)"
+Write-Information "Directories: $($directories.path)"
 #endregion Change mapping here
 
 try {
@@ -106,7 +106,7 @@ try {
             }
             else {
                 if ($dryRun -eq $false) {
-                    Write-Verbose "Setting permissions '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'"
+                    Write-Information "Setting permissions '$($directory.permission)' for user '$($directory.ad_user.SID)' to '$($directory.inheritance)' for directory '$($directory.path)'"
 
                     $perm = $null
                     switch ($directory.permission) {
@@ -147,7 +147,7 @@ try {
             $verboseErrorMessage = $ex.Exception.Message
             $auditErrorMessage = $ex.Exception.Message
 
-            Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+            Write-Information "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
 
             $auditLogs.Add([PSCustomObject]@{
                     Action  = "CreateAccount"

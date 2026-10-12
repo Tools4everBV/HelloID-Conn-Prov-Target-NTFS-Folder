@@ -48,15 +48,5 @@
       "description": "Drive letter to be mapped to homefolder",
       "required": true
     }
-  },
-  {
-    "key": "isDebug",
-    "type": "checkbox",
-    "defaultValue": true,
-    "templateOptions": {
-      "label": "Toggle debug logging",
-      "description": "When toggled, debug logging will be displayed",
-      "required": false
-    }
   }
 ]
