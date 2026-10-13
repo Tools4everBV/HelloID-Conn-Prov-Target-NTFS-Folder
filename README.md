@@ -88,9 +88,6 @@ The field mapping can be imported by using the _fieldMapping.json_ file.
 > [!TIP] 
 > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/hc/en-us/articles/360012558020-Configure-a-custom-PowerShell-target-system) pages_
 
-> [!TIP] 
-> _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com)_
-
 ## HelloID docs
 
 The official HelloID documentation can be found at: https://docs.helloid.com/

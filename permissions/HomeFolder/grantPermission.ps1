@@ -6,15 +6,6 @@
 # Enable TLS1.2
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
-# Set debug logging
-switch ($($actionContext.Configuration.isDebug)) {
-    $true { $VerbosePreference = 'Continue' }
-    $false { $VerbosePreference = 'SilentlyContinue' }
-}
-$InformationPreference = "Continue"
-$WarningPreference = "Continue"
-
-# Begin
 try {
     # Verify if [aRef] has a value
     if ([string]::IsNullOrEmpty($($actionContext.References.Account))) {
@@ -52,7 +43,7 @@ try {
     # Process    
     switch ($action) {        
         'GrantPermission' {
-            Write-Information "Granting NTFS permission: [$($actionContext.References.Permission.DisplayName)] - [$($actionContext.References.Permission.Reference)]"
+            Write-Information "Granting NTFS permission: [$($actionContext.PermissionDisplayName)] - [$($actionContext.References.Permission.Reference)]"
             # Make sure to test with special characters and if needed; add utf8 encoding.
             $directory = @{
                 ad_user         = $correlatedAccount
@@ -69,7 +60,7 @@ try {
             $path_exists = test-path $directory.path                
             if (-Not $path_exists) {
                 if (-not($actionContext.DryRun -eq $true)) {
-                    Write-Verbose "Creating directory at path [$($directory.path)]"
+                    Write-Information "Creating directory at path [$($directory.path)]"
 
                     $newDirectory = New-Item -path $directory.path -ItemType Directory -force
 
@@ -93,7 +84,7 @@ try {
                 }
 
                 if (-not($actionContext.DryRun -eq $true)) {
-                    Write-Verbose "Updating AD user [$($directory.ad_user)] attributes: [$($adUserParams|ConvertTo-Json)]"
+                    Write-Information "Updating AD user [$($directory.ad_user)] attributes: [$($adUserParams|ConvertTo-Json)]"
 
                     Set-ADUser $directory.ad_user @adUserParams
 
@@ -110,7 +101,7 @@ try {
 
             if ($null -ne $directory.ad_user) {
                 if (-not($actionContext.DryRun -eq $true)) {
-                    Write-Verbose "Setting ACL permissions for user [$($directory.ad_user.sAMAccountName)] to directory [$($directory.path)]. File System Rights [$($directory.fsr)], Inheritance Flags [$($directory.inf)], Propagation Flags [$($directory.pf)], Access Control Type [$($directory.act)]"
+                    Write-Information "Setting ACL permissions for user [$($directory.ad_user.sAMAccountName)] to directory [$($directory.path)]. File System Rights [$($directory.fsr)], Inheritance Flags [$($directory.inf)], Propagation Flags [$($directory.pf)], Access Control Type [$($directory.act)]"
                 
                     #Return ACL to modify
                     $acl = Get-Acl $directory.path
@@ -132,12 +123,12 @@ try {
                         })       
                 }
                 else {
-                    Write-Information "[DryRun] Grant NTFS permission: [$($actionContext.References.Permission.DisplayName)] - [$($actionContext.References.Permission.Reference)], will be executed during enforcement"
+                    Write-Information "[DryRun] Grant NTFS permission: [$($actionContext.PermissionDisplayName)] - [$($actionContext.References.Permission.Reference)], will be executed during enforcement"
                 }   
             }
             $outputContext.Success = $true
             $outputContext.AuditLogs.Add([PSCustomObject]@{
-                    Message = "Grant permission [$($actionContext.References.Permission.DisplayName)] was successful"
+                    Message = "Grant permission [$($actionContext.PermissionDisplayName)] was successful"
                     IsError = $false
                 })
             break
