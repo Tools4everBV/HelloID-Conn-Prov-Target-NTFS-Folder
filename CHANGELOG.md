@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 - Post AD action scripts (Set-ACL and icacls): enable inheritance on the newly created directory, fixes [#6](https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-NTFS-Folder/issues/6). Both actions can be toggled with `$setPermissions` and `$enableInheritance`
 - icacls post AD action: exit code check, so a failing icacls is now reported as an error
+- Post AD action scripts (Set-ACL and icacls): log the AD user identity and selected domain controller before querying Active Directory
 
 ### Changed
 - Set-ACL post AD action: reads and writes only the DACL (no `SeSecurityPrivilege` required), runs directly instead of in a background job and verifies the result
@@ -17,6 +18,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 - icacls post AD action: granting permissions failed with "No mapping between account names and security IDs" because the SID was not prefixed with `*`
 - icacls post AD action: inheritance level `This folder and subfolders` was never matched due to a trailing space
+- Post AD action scripts (Set-ACL and icacls): ignore the entitlement context domain controller during dry-run and use PDC discovery instead, preventing connection failures
 
 ## [2.0.2] - 12-10-2026
 

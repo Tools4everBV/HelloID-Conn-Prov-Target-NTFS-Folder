@@ -53,8 +53,8 @@ function Get-ScopeDescription {
 }
 
 # Get Primary Domain Controller
-# Use domain controller from eRef if available, otherwise query primary domain controller
-if (-NOT([String]::IsNullOrEmpty($eRef.domainController.Name))) {
+# Use domain controller from eRef outside dry-run if available, otherwise query primary domain controller
+if ($dryRun -ne $true -and -NOT([String]::IsNullOrEmpty($eRef.domainController.Name))) {
     $pdc = $eRef.domainController.Name
 }
 else {
@@ -78,6 +78,7 @@ else {
 }
 
 try {
+    Write-Information "Querying AD user with identity [$adUSerIdentity] on domain controller [$pdc]"
     $adUser = Get-ADUser -Identity $adUSerIdentity -server $pdc
 }
 catch {
