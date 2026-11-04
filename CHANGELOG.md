@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com), and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [2.1.0] - 03-11-2026
+
+### Added
+- Account import script (`import.ps1`) for entitlement import of accounts
+- Permission import script (`permissions/HomeFolder/import.ps1`) for entitlement import of the Home Folder permission. When `Set AD attributes` is enabled, only accounts whose `homeDirectory` matches the home folder path are imported
+- `Name` field in the field mapping, used as display name during the account import
+- `Fixed domain controller` setting in the configuration. When filled, the create, import, grant, revoke and permission import scripts use this domain controller instead of looking up the PDC emulator
+
+### Changed
+- Revoke permission: the archived folder name is prefixed with the archive date (`yyyy-MM-dd_<sAMAccountName>`)
+- README rewritten based on the PowerShell V2 target template
+
+### Fixed
+- Revoke permission: the `Archive when revoked` setting was ignored, the folder was always archived
+- Create: syntax error caused by a stray character after the closing bracket in the `finally` block
+- Grant permission: the error at line was not logged because `$ex` was not set in the `catch` block
+
 ## [2.0.3] - 13-10-2026
 
 ### Added

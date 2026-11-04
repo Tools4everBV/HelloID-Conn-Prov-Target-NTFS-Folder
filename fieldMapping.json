@@ -48,6 +48,22 @@
           "StoreInAccountData": true
         }
       ]
+    },
+        {
+      "Name": "Name",
+      "Description": "[Mandatory]",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create"
+          ],
+          "MappingMode": "None",
+          "Value": "null",
+          "UsedInNotifications": false,
+          "StoreInAccountData": false
+        }
+      ]
     }
   ],
   "UniqueFieldNames": []

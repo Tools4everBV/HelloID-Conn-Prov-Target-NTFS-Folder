@@ -14,13 +14,19 @@ try {
 
     Write-Information 'Verifying if a NTFS account exists'
     #Get Primary Domain Controller
-    try {
-        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    if ([string]::IsNullOrEmpty($actionContext.Configuration.fixedDomainController)) {
+        try {
+            $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+        }
+        catch {
+            Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+            Write-Warning "Retrying PDC Lookup"
+            $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+        }
     }
-    catch {
-        Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
-        Write-Warning "Retrying PDC Lookup"
-        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    else {
+        Write-Information "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"
+        $pdc = $($actionContext.Configuration.fixedDomainController)
     }
 
     
@@ -147,7 +153,7 @@ try {
 }
 catch {
     $outputContext.success = $false
-    
+    $ex = $PSItem
     $auditMessage = "Could not grant NTFS permission. Error: $($_.Exception.Message)"
     Write-Warning "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     
