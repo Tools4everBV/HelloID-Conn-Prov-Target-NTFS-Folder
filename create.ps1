@@ -46,7 +46,7 @@ try {
         }
     }
     else {
-        Write-Information "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"    
+        Write-Information "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"
         $pdc = $($actionContext.Configuration.fixedDomainController)
     }
     #endregion Get Primary Domain Controller
@@ -139,5 +139,5 @@ finally {
     # Check if auditLogs contains errors, if no errors are found, set success to true
     if (-NOT($outputContext.AuditLogs.IsError -contains $true)) {
         $outputContext.Success = $true
-    }s
+    }
 }

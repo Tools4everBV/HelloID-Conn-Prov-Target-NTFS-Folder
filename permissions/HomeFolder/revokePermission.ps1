@@ -13,13 +13,19 @@ try {
     }
 
     #Get Primary Domain Controller
-    try {
-        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    if ([string]::IsNullOrEmpty($actionContext.Configuration.fixedDomainController)) {
+        try {
+            $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+        }
+        catch {
+            Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
+            Write-Warning "Retrying PDC Lookup"
+            $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+        }
     }
-    catch {
-        Write-Warning ("PDC Lookup Error: {0}" -f $_.Exception.InnerException.Message)
-        Write-Warning "Retrying PDC Lookup"
-        $pdc = (Get-ADForest | Select-Object -ExpandProperty RootDomain | Get-ADDomain | Select-Object -Property PDCEmulator).PDCEmulator
+    else {
+        Write-Information "A fixed domain controller is configured [$($actionContext.Configuration.fixedDomainController)]"
+        $pdc = $($actionContext.Configuration.fixedDomainController)
     }
 
     Write-Information 'Verifying if a NTFS account exists'
@@ -59,7 +65,7 @@ try {
             $directory = @{
                 ad_user         = $accountSid
                 path            = "$($actionContext.Configuration.homeFolderShare)\$accountSamAccountName"
-                archive_path    = "$($actionContext.Configuration.homeFolderArchiveShare)\$accountSamAccountName"
+                archive_path    = "$($actionContext.Configuration.homeFolderArchiveShare)\$(Get-Date -Format 'yyyy-MM-dd')_$accountSamAccountName"
                 setADAttributes = $actionContext.Configuration.setAttributes
                 drive           = "$($actionContext.Configuration.homeDrive)"
             }
@@ -77,23 +83,24 @@ try {
             }
             else {
                 # Archive directory
-                if ($actionContext.DryRun -eq $false) {
-                    Write-Information "Moving directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
+                if ($actionContext.Configuration.archive -eq $true) {
+                    if ($actionContext.DryRun -eq $false) {
+                        Write-Information "Moving directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
             
-                    # The scripts in HelloID Prov have a 30 second time-out limit. Therefore we use a job to archive (larger) folders
-                    $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop } -ArgumentList @($directory.path, $directory.archive_path)
-                    # If troubleshooting is need, use the action below instead of the job, as the job doesn't show any errors
-                    # $archivedDirectory = Move-Item -Path $directory.path -Destination $directory.archive_path -Force -ErrorAction Stop
+                        # The scripts in HelloID Prov have a 30 second time-out limit. Therefore we use a job to archive (larger) folders
+                        $job = Start-Job -ScriptBlock { Move-Item -Path $args[0] -Destination $args[1] -Force -ErrorAction Stop } -ArgumentList @($directory.path, $directory.archive_path)
+                        # If troubleshooting is need, use the action below instead of the job, as the job doesn't show any errors
+                        # $archivedDirectory = Move-Item -Path $directory.path -Destination $directory.archive_path -Force -ErrorAction Stop
                                 
-                    $outputContext.auditLogs.Add([PSCustomObject]@{
-                            Message = "Successfully moved directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
-                            IsError = $false
-                        })
+                        $outputContext.auditLogs.Add([PSCustomObject]@{
+                                Message = "Successfully moved directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
+                                IsError = $false
+                            })
+                    }
+                    else {
+                        Write-Information "[DryRun] Would move directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
+                    }  
                 }
-                else {
-                    Write-Information "[DryRun] Would move directory at path '$($directory.path)' to archive path '$($directory.archive_path)'"
-                }        
-
             }
             # Update AD User
             if ($null -ne $directory.ad_user -and $directory.setADAttributes -eq $true -and $actionAD -eq 'Found') {
